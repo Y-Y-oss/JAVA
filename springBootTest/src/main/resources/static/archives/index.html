@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>时光代理人 · 时光档案</title>
+<style>
+  :root {
+    --bg: #070b1c;
+    --panel: rgba(18, 26, 54, 0.72);
+    --panel-solid: #121a36;
+    --border: rgba(122, 245, 247, 0.16);
+    --cyan: #7af5f7;
+    --cyan-soft: rgba(122, 245, 247, 0.75);
+    --purple: #b39cff;
+    --magenta: #ff9ae0;
+    --text: #e8edfb;
+    --text-dim: #9fb0d8;
+    --danger: #ff7a9c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    min-height: 100vh; color: var(--text);
+    background: radial-gradient(1100px 500px at 15% -10%, rgba(122,245,247,.10), transparent 60%),
+                radial-gradient(900px 500px at 85% 110%, rgba(255,154,224,.10), transparent 60%),
+                var(--bg);
+  }
+
+  /* ============ 顶栏 ============ */
+  .topbar {
+    max-width: 1080px; margin: 0 auto; padding: 26px 24px 10px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .topbar h1 {
+    font-size: 22px; letter-spacing: 3px;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .topbar .who { color: var(--text-dim); font-size: 13px; display: flex; align-items: center; gap: 14px; }
+  .topbar .who b { color: var(--cyan); }
+  .link-btn { background: none; border: 0; color: var(--cyan-soft); font-size: 13px; cursor: pointer; font-family: inherit; }
+  .link-btn:hover { color: var(--cyan); text-decoration: underline; }
+
+  /* ============ 标签页 ============ */
+  .tabs { max-width: 1080px; margin: 12px auto 0; padding: 0 24px; display: flex; gap: 8px; }
+  .tab {
+    padding: 9px 22px; border-radius: 12px 12px 0 0; cursor: pointer; font-size: 14px;
+    border: 1px solid var(--border); border-bottom: 0; color: var(--text-dim);
+    background: rgba(18,26,54,.35); transition: .2s; user-select: none;
+  }
+  .tab.active { color: var(--cyan); background: var(--panel); }
+
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px 70px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 0 16px 16px 16px; padding: 22px; backdrop-filter: blur(14px); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .btn {
+    padding: 9px 18px; border-radius: 10px; border: 0; cursor: pointer;
+    font-size: 13px; font-family: inherit; font-weight: 600; color: #071018;
+    background: linear-gradient(135deg, var(--cyan), var(--purple)); transition: .2s;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.ghost { background: none; border: 1px solid rgba(159,176,216,.3); color: var(--text-dim); }
+  .btn.ghost:hover { color: var(--text); border-color: var(--cyan-soft); }
+  .btn.mg { background: linear-gradient(135deg, var(--purple), var(--magenta)); }
+
+  /* ============ 卡片流 ============ */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: rgba(7,11,28,.55); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px; transition: .25s; position: relative;
+  }
+  .card:hover { border-color: var(--cyan-soft); box-shadow: 0 8px 30px rgba(45,226,230,.12); transform: translateY(-2px); }
+  .card .title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .card .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tagchip {
+    display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; line-height: 18px;
+  }
+  .tagchip.t { color: var(--magenta); background: rgba(255,154,224,.12); border: 1px solid rgba(255,154,224,.3); }
+  .tagchip.d { color: var(--cyan-soft); background: rgba(122,245,247,.08); border: 1px solid rgba(122,245,247,.22); }
+  .tagchip.pub { color: var(--purple); background: rgba(179,156,255,.12); border: 1px solid rgba(179,156,255,.3); }
+  .card .content {
+    color: var(--text-dim); font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+    max-height: 120px; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical;
+  }
+  .card .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .card .foot .time { font-size: 12px; color: var(--text-dim); opacity: .7; }
+  .card .ops { display: flex; gap: 6px; }
+  .card .ops button {
+    padding: 4px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit;
+    border: 1px solid rgba(159,176,216,.25); background: none; color: var(--text-dim); transition: .2s;
+  }
+  .card .ops button:hover { color: var(--text); border-color: var(--cyan-soft); }
+  .card .ops button.danger:hover { color: var(--danger); border-color: var(--danger); }
+  .empty { text-align: center; color: var(--text-dim); padding: 50px 0; font-size: 14px; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 18px; font-size: 13px; color: var(--text-dim); }
+
+  /* ============ 登录卡片 ============ */
+  #login-view { min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .login-card {
+    width: 380px; max-width: 100%;
+    background: var(--panel); backdrop-filter: blur(18px);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 38px 34px; box-shadow: 0 24px 70px rgba(0,0,0,.5);
+  }
+  .login-card h1 {
+    font-size: 24px; text-align: center; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .login-card .sub { text-align: center; color: var(--text-dim); font-size: 13px; margin: 8px 0 26px; }
+  .login-card label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; }
+  .login-card input {
+    width: 100%; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid rgba(159,176,216,.25); background: rgba(7,11,28,.6);
+    color: var(--text); font-size: 14px; outline: none; transition: .2s;
+  }
+  .login-card input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(122,245,247,.12); }
+  .login-btn {
+    width: 100%; margin-top: 24px; padding: 12px; border: 0; border-radius: 12px;
+    background: linear-gradient(135deg, #2de6e6, #b39cff, #ff9ae0);
+    color: #071018; font-size: 15px; font-weight: 700; letter-spacing: 4px; cursor: pointer; transition: .25s;
+  }
+  .login-btn:hover { filter: brightness(1.12); }
+  .login-err { color: var(--danger); font-size: 13px; text-align: center; margin-top: 14px; min-height: 18px; }
+
+  /* ============ 弹窗 ============ */
+  .mask {
+    display: none; position: fixed; inset: 0; background: rgba(4,7,18,.7);
+    backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 50;
+  }
+  .mask.show { display: flex; }
+  .modal {
+    width: 480px; max-width: calc(100vw - 40px); max-height: 90vh; overflow: auto;
+    background: var(--panel-solid); border: 1px solid var(--border); border-radius: 16px;
+    padding: 26px; box-shadow: 0 24px 70px rgba(0,0,0,.6);
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; color: var(--cyan); }
+  .modal label { display: block; font-size: 13px; color: var(--text-dim); margin: 12px 0 6px; }
+  .modal input[type="text"], .modal textarea {
+    width: 100%; padding: 10px 13px; border-radius: 10px;
+    border: 1px solid rgba(159,176,216,.25); background: rgba(7,11,28,.6);
+    color: var(--text); font-size: 14px; outline: none; font-family: inherit;
+  }
+  .modal input:focus, .modal textarea:focus { border-color: var(--cyan); }
+  .modal textarea { min-height: 140px; resize: vertical; line-height: 1.7; }
+  .modal input[type="date"] { padding: 10px 13px; border-radius: 10px; border: 1px solid rgba(159,176,216,.25); background: rgba(7,11,28,.6); color: var(--text); font-family: inherit; outline: none; color-scheme: dark; }
+  .check-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--text-dim); font-size: 13px; cursor: pointer; }
+  .modal .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .modal .btn.cancel { background: none; border: 1px solid rgba(159,176,216,.3); color: var(--text-dim); }
+  .modal p.warn { color: var(--text-dim); font-size: 13px; line-height: 1.7; }
+
+  /* ============ Toast ============ */
+  #toast {
+    position: fixed; top: 26px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    padding: 11px 22px; border-radius: 12px; font-size: 14px; z-index: 99;
+    background: var(--panel-solid); border: 1px solid var(--cyan); color: var(--cyan);
+    box-shadow: 0 10px 40px rgba(0,0,0,.5); transition: transform .35s; max-width: 80vw;
+  }
+  #toast.err { border-color: var(--danger); color: var(--danger); }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 未登录视图：档案墙 + 登录入口 -->
+<div id="guest-view">
+  <div class="topbar">
+    <h1>时光档案 · 档案墙</h1>
+    <div class="who">
+      <span>游客模式（仅可浏览公开档案）</span>
+      <button class="link-btn" onclick="showLoginCard()">登录 / 注册</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="panel">
+      <div class="cards" id="wall-guest"></div>
+      <div class="empty" id="wall-empty" style="display:none">档案墙还是空的，登录后写下第一份档案吧</div>
+      <div class="pager">
+        <span id="wall-page-info-guest">-</span>
+        <button class="btn ghost" onclick="wallGuestPage(-1)">上一页</button>
+        <button class="btn ghost" onclick="wallGuestPage(1)">下一页</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 登录弹层 -->
+<div class="mask" id="mask-login">
+  <div class="login-card" style="width:400px">
+    <h1>时光代理人</h1>
+    <div class="sub">登 录 后 开 启 你 的 时 光 档 案</div>
+    <label>账号</label>
+    <input id="li-user" type="text" placeholder="用户名" autocomplete="username" />
+    <label>密码</label>
+    <input id="li-pwd" type="password" placeholder="密码" autocomplete="current-password" />
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="li-err"></div>
+    <p style="text-align:center;font-size:12px;color:var(--text-dim);margin-top:10px">
+      还没有账号？去 <a href="/" style="color:var(--cyan-soft)">注册页</a> 注册一个
+    </p>
+  </div>
+</div>
+
+<!-- 已登录视图 -->
+<div id="user-view" style="display:none">
+  <div class="topbar">
+    <h1>时光档案</h1>
+    <div class="who">
+      <span>代理人：<b id="who-name">-</b></span>
+      <button class="link-btn" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-mine" onclick="switchTab('mine')">我的档案</div>
+    <div class="tab" id="tab-wall" onclick="switchTab('wall')">公开档案墙</div>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <div id="mine-area">
+        <div class="toolbar">
+          <button class="btn mg" onclick="openEditor(null)">＋ 封存新档案</button>
+          <button class="btn ghost" onclick="loadMine(1)">刷新</button>
+        </div>
+        <div class="cards" id="mine-cards"></div>
+        <div class="empty" id="mine-empty" style="display:none">
+          还没有档案。点击「封存新档案」，写下你想留住的时光。
+        </div>
+        <div class="pager">
+          <span id="mine-page-info">-</span>
+          <button class="btn ghost" onclick="minePage(-1)">上一页</button>
+          <button class="btn ghost" onclick="minePage(1)">下一页</button>
+        </div>
+      </div>
+      <div id="wall-area" style="display:none">
+        <div class="cards" id="wall-user"></div>
+        <div class="empty" id="wall-user-empty" style="display:none">档案墙还是空的</div>
+        <div class="pager">
+          <span id="wall-page-info-user">-</span>
+          <button class="btn ghost" onclick="wallUserPage(-1)">上一页</button>
+          <button class="btn ghost" onclick="wallUserPage(1)">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建 / 编辑弹窗 -->
+<div class="mask" id="mask-editor">
+  <div class="modal">
+    <h3 id="ed-title-h">封存新档案</h3>
+    <label>标题 *</label>
+    <input id="ed-title" type="text" maxlength="100" placeholder="给这段时光起个名字" />
+    <label>内容</label>
+    <textarea id="ed-content" maxlength="5000" placeholder="写下这段时光的故事…"></textarea>
+    <label>时光节点</label>
+    <input id="ed-date" type="date" />
+    <label>标签</label>
+    <input id="ed-tag" type="text" maxlength="30" placeholder="如：私语 / 信件 / 告白 / 约定" />
+    <label class="check-row" style="margin-top:16px">
+      <input id="ed-public" type="checkbox" style="width:auto" />
+      公开到档案墙（其他代理人可见）
+    </label>
+    <div class="row">
+      <button class="btn cancel" onclick="closeModal('mask-editor')">取消</button>
+      <button class="btn mg" onclick="saveArchive()">封 存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认 -->
+<div class="mask" id="mask-del">
+  <div class="modal" style="width:380px">
+    <h3 style="color:var(--danger)">抹去档案</h3>
+    <p class="warn">确定要把「<b id="del-name" style="color:var(--text)"></b>」从时光长廊中抹去吗？<br>该操作不可恢复。</p>
+    <div class="row">
+      <button class="btn cancel" onclick="closeModal('mask-del')">取消</button>
+      <button class="btn" style="background:var(--danger)" onclick="confirmDelete()">确认抹去</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 状态 ================= */
+var TOKEN_KEY = 'archive_access_token';
+var token = localStorage.getItem(TOKEN_KEY) || '';
+var userName = '';
+var curTab = 'mine';
+var minePageNum = 1, mineTotalPages = 1;
+var wallGuestPageNum = 1, wallGuestTotalPages = 1;
+var wallUserPageNum = 1, wallUserTotalPages = 1;
+var editingId = null;
+var deleteId = null;
+/* 按 id 缓存档案，供弹窗取标题（避免把标题拼进 onclick 里的 JS 字符串） */
+var archiveCache = {};
+
+/* ================= 工具 ================= */
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.className = ''; }, 2400);
+}
+function esc(s) {
+  if (s === null || s === undefined || s === '') return '';
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function fmtTime(v) {
+  if (!v) return '';
+  return String(v).replace('T', ' ').replace(/\.\d+$/, '');
+}
+function fmtDate(v) {
+  if (!v) return '';
+  return String(v).substring(0, 10);
+}
+
+/* ================= 请求 ================= */
+function api(method, url, body, withToken) {
+  var options = { method: method, headers: { 'Accept': 'application/json' } };
+  if (withToken !== false && token) options.headers['Authorization'] = 'Bearer ' + token;
+  if (body) {
+    options.headers['Content-Type'] = 'application/json;charset=utf-8';
+    options.body = JSON.stringify(body);
+  }
+  return fetch(url, options).then(function (r) { return r.json(); }).then(function (json) {
+    if (json.code === 401 || json.code === 403) {
+      if (json.code === 401) { localStorage.removeItem(TOKEN_KEY); token = ''; showGuest(); }
+      throw new Error(json.message || '请重新登录');
+    }
+    if (json.code !== 200) throw new Error(json.message || '请求失败');
+    return json;
+  });
+}
+
+/* ================= 视图切换 ================= */
+function showGuest() {
+  document.getElementById('guest-view').style.display = 'block';
+  document.getElementById('user-view').style.display = 'none';
+  loadWallGuest(1);
+}
+function showUser() {
+  document.getElementById('guest-view').style.display = 'none';
+  document.getElementById('user-view').style.display = 'block';
+  document.getElementById('who-name').textContent = userName;
+  switchTab('mine');
+}
+function switchTab(tab) {
+  curTab = tab;
+  document.getElementById('tab-mine').className = 'tab' + (tab === 'mine' ? ' active' : '');
+  document.getElementById('tab-wall').className = 'tab' + (tab === 'wall' ? ' active' : '');
+  document.getElementById('mine-area').style.display = tab === 'mine' ? 'block' : 'none';
+  document.getElementById('wall-area').style.display = tab === 'wall' ? 'block' : 'none';
+  if (tab === 'mine') loadMine(minePageNum);
+  else loadWallUser(1);
+}
+
+/* ================= 登录 ================= */
+function showLoginCard() {
+  document.getElementById('li-err').textContent = '';
+  document.getElementById('mask-login').classList.add('show');
+}
+function doLogin() {
+  var u = document.getElementById('li-user').value.trim();
+  var p = document.getElementById('li-pwd').value;
+  var err = document.getElementById('li-err');
+  err.textContent = '';
+  if (!u || !p) { err.textContent = '请输入账号和密码'; return; }
+  fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json;charset=utf-8' },
+    body: JSON.stringify({ account: u, password: p })
+  }).then(function (r) { return r.json(); }).then(function (json) {
+    if (json.code !== 200) { err.textContent = json.message || '登录失败'; return; }
+    token = json.data.accessToken;
+    userName = json.data.username;
+    localStorage.setItem(TOKEN_KEY, token);
+    closeModal('mask-login');
+    showUser();
+  }).catch(function () { err.textContent = '网络错误，请确认后端已启动'; });
+}
+document.getElementById('li-pwd').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') doLogin();
+});
+function doLogout() {
+  api('POST', '/api/auth/logout').catch(function () {});
+  localStorage.removeItem(TOKEN_KEY);
+  token = '';
+  showGuest();
+}
+
+/* ================= 我的档案 ================= */
+function loadMine(page) {
+  api('GET', '/api/archives?page=' + page + '&size=12').then(function (json) {
+    var d = json.data;
+    minePageNum = d.page;
+    mineTotalPages = Math.max(1, Math.ceil(d.total / d.size));
+    archiveCache = {};
+    (d.records || []).forEach(function (a) { archiveCache[a.id] = a; });
+    var cards = (d.records || []).map(function (a) { return archiveCard(a, true); });
+    document.getElementById('mine-cards').innerHTML = cards.join('');
+    document.getElementById('mine-empty').style.display = cards.length ? 'none' : 'block';
+    document.getElementById('mine-page-info').textContent = '第 ' + minePageNum + ' / ' + mineTotalPages + ' 页 · 共 ' + d.total + ' 份';
+  }).catch(function (e) { toast(e.message, true); });
+}
+function minePage(delta) {
+  var next = minePageNum + delta;
+  if (next >= 1 && next <= mineTotalPages) loadMine(next);
+}
+
+/* ================= 档案墙 ================= */
+function wallCardHtml(a) {
+  var chips = '<span class="tagchip d">' + esc(a.username) + '</span>';
+  if (a.tag) chips += '<span class="tagchip t">' + esc(a.tag) + '</span>';
+  if (a.archiveDate) chips += '<span class="tagchip d">' + esc(fmtDate(a.archiveDate)) + '</span>';
+  return '<div class="card">'
+    + '<div class="title">' + esc(a.title) + '</div>'
+    + '<div class="meta">' + chips + '</div>'
+    + '<div class="content">' + esc(a.content || '（无内容）') + '</div>'
+    + '<div class="foot"><span class="time">' + esc(fmtTime(a.updateTime)) + '</span></div>'
+    + '</div>';
+}
+function loadWallGuest(page) {
+  api('GET', '/api/archives/public?page=' + page + '&size=12', null, false).then(function (json) {
+    var d = json.data;
+    wallGuestPageNum = d.page;
+    wallGuestTotalPages = Math.max(1, Math.ceil(d.total / d.size));
+    var cards = (d.records || []).map(wallCardHtml);
+    document.getElementById('wall-guest').innerHTML = cards.join('');
+    document.getElementById('wall-empty').style.display = cards.length ? 'none' : 'block';
+    document.getElementById('wall-page-info-guest').textContent = '第 ' + wallGuestPageNum + ' / ' + wallGuestTotalPages + ' 页 · 共 ' + d.total + ' 份';
+  }).catch(function (e) { toast(e.message, true); });
+}
+function wallGuestPage(delta) {
+  var next = wallGuestPageNum + delta;
+  if (next >= 1 && next <= wallGuestTotalPages) loadWallGuest(next);
+}
+function loadWallUser(page) {
+  api('GET', '/api/archives/public?page=' + page + '&size=12', null, false).then(function (json) {
+    var d = json.data;
+    wallUserPageNum = d.page;
+    wallUserTotalPages = Math.max(1, Math.ceil(d.total / d.size));
+    var cards = (d.records || []).map(wallCardHtml);
+    document.getElementById('wall-user').innerHTML = cards.join('');
+    document.getElementById('wall-user-empty').style.display = cards.length ? 'none' : 'block';
+    document.getElementById('wall-page-info-user').textContent = '第 ' + wallUserPageNum + ' / ' + wallUserTotalPages + ' 页 · 共 ' + d.total + ' 份';
+  }).catch(function (e) { toast(e.message, true); });
+}
+function wallUserPage(delta) {
+  var next = wallUserPageNum + delta;
+  if (next >= 1 && next <= wallUserTotalPages) loadWallUser(next);
+}
+
+/* ================= 卡片渲染（我的档案） ================= */
+function archiveCard(a, mine) {
+  var chips = '';
+  if (a.tag) chips += '<span class="tagchip t">' + esc(a.tag) + '</span>';
+  if (a.archiveDate) chips += '<span class="tagchip d">' + esc(fmtDate(a.archiveDate)) + '</span>';
+  chips += a.visibility === 1
+    ? '<span class="tagchip pub">公开</span>'
+    : '<span class="tagchip d">私密</span>';
+  var ops = '<div class="ops">'
+    + '<button onclick="openEditor(' + a.id + ')">编辑</button>'
+    + '<button class="danger" onclick="openDelete(' + a.id + ',\'' + esc(a.title) + '\')">抹去</button>'
+    + '</div>';
+  return '<div class="card">'
+    + '<div class="title">' + esc(a.title) + '</div>'
+    + '<div class="meta">' + chips + '</div>'
+    + '<div class="content">' + esc(a.content || '（无内容）') + '</div>'
+    + '<div class="foot"><span class="time">' + esc(fmtTime(a.updateTime)) + '</span>' + ops + '</div>'
+    + '</div>';
+}
+
+/* ================= 新建 / 编辑 ================= */
+function openEditor(id) {
+  editingId = id || null;
+  if (id) {
+    api('GET', '/api/archives/' + id).then(function (json) {
+      var a = json.data;
+      document.getElementById('ed-title-h').textContent = '编辑档案';
+      document.getElementById('ed-title').value = a.title || '';
+      document.getElementById('ed-content').value = a.content || '';
+      document.getElementById('ed-date').value = a.archiveDate ? fmtDate(a.archiveDate) : '';
+      document.getElementById('ed-tag').value = a.tag || '';
+      document.getElementById('ed-public').checked = a.visibility === 1;
+      document.getElementById('mask-editor').classList.add('show');
+    }).catch(function (e) { toast(e.message, true); });
+  } else {
+    document.getElementById('ed-title-h').textContent = '封存新档案';
+    document.getElementById('ed-title').value = '';
+    document.getElementById('ed-content').value = '';
+    document.getElementById('ed-date').value = '';
+    document.getElementById('ed-tag').value = '';
+    document.getElementById('ed-public').checked = false;
+    document.getElementById('mask-editor').classList.add('show');
+  }
+}
+function saveArchive() {
+  var title = document.getElementById('ed-title').value.trim();
+  if (!title) { toast('请输入档案标题', true); return; }
+  var body = {
+    title: title,
+    content: document.getElementById('ed-content').value,
+    archiveDate: document.getElementById('ed-date').value || null,
+    tag: document.getElementById('ed-tag').value.trim(),
+    visibility: document.getElementById('ed-public').checked ? 1 : 0
+  };
+  var p = editingId
+    ? api('PUT', '/api/archives/' + editingId, body)
+    : api('POST', '/api/archives', body);
+  p.then(function (json) {
+    closeModal('mask-editor');
+    toast(json.message);
+    loadMine(1);
+  }).catch(function (e) { toast(e.message, true); });
+}
+
+/* ================= 删除 ================= */
+function openDelete(id, name) {
+  deleteId = id;
+  document.getElementById('del-name').textContent = name;
+  document.getElementById('mask-del').classList.add('show');
+}
+function confirmDelete() {
+  api('DELETE', '/api/archives/' + deleteId).then(function (json) {
+    closeModal('mask-del');
+    toast(json.message);
+    loadMine(minePageNum);
+  }).catch(function (e) { toast(e.message, true); });
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ================= 启动 ================= */
+(function init() {
+  if (token) {
+    api('GET', '/api/archives?page=1&size=1').then(function () {
+      try {
+        var payload = JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')))));
+        userName = payload.username || '-';
+      } catch (e) { userName = '-'; }
+      showUser();
+    }).catch(function () {
+      // token 无效：api() 已切回游客视图
+    });
+  } else {
+    showGuest();
+  }
+})();
+</script>
+</body>
+</html>
