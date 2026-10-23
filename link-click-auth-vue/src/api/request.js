@@ -90,5 +90,7 @@ async function request(method, url, params = {}, body = null) {
 
 export const get = (url, params) => request('GET', url, params || {})
 export const post = (url, body) => request('POST', url, {}, body || {})
+export const put = (url, body) => request('PUT', url, {}, body || {})
+export const del = (url) => request('DELETE', url)
 
-export default { get, post, request }
+export default { get, post, put, del, request }

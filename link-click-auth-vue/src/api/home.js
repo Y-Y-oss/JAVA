@@ -5,7 +5,7 @@
  * 真实后端用 /api/archives 提供「时光档案」数据。这里统一改为对接真实接口。
  * 登录态由 request 层自动携带 Authorization 头，无需手动传 token。
  */
-import { get } from './request'
+import { get, post, put, del } from './request'
 
 /**
  * 我的档案列表（需登录）  GET /api/archives?page=1&size=10
@@ -51,4 +51,29 @@ export function searchArchives(q, page = 1, size = 50) {
  */
 export function searchPublicArchives(q, page = 1, size = 8) {
   return get('/archives/public/search', { q, page, size })
+}
+
+/**
+ * 新建档案（需登录）  POST /api/archives
+ * @param {object} dto { title(必填), content?, archiveDate?(yyyy-MM-dd), tag?, visibility?(0|1) }
+ * @returns { data: Archive }
+ */
+export function createArchive(dto) {
+  return post('/archives', dto)
+}
+
+/**
+ * 编辑档案（需登录，只能改自己的）  PUT /api/archives/{id}
+ * @returns { data: Archive }
+ */
+export function updateArchive(id, dto) {
+  return put('/archives/' + id, dto)
+}
+
+/**
+ * 删除档案（需登录，只能删自己的）  DELETE /api/archives/{id}
+ * @returns { data: { id } }
+ */
+export function deleteArchive(id) {
+  return del('/archives/' + id)
 }
