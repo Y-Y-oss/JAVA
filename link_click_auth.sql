@@ -92,6 +92,8 @@ CREATE TABLE `lc_user`  (
 -- Records of lc_user
 -- ----------------------------
 INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '$2a$10$BCOIjfKAsurIU1kEh1JSwOF3TTzrD25CnqhwGQ1xZpHwfB0F6IpeW', 'tester01', 'user', 1, 1, '2026-10-09 14:33:30', '2026-10-09 14:33:27', '2026-10-09 14:33:29');
+-- 后台管理账号：admin / admin123（role=admin，BCrypt 哈希）
+INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', 'admin', 1, 1, NULL, '2026-10-28 00:00:00', '2026-10-28 00:00:00');
 
 -- ----------------------------
 -- Table structure for lc_archive

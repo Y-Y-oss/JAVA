@@ -12,7 +12,8 @@ const navItems = [
   { key: 'home', label: '首页', path: '/', icon: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10' },
   { key: 'timeline', label: '时间线', path: '/timeline', icon: 'M4 6h16M4 12h16M4 18h10' },
   { key: 'album', label: '相册', path: '/album', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 4-5 4 5' },
-  { key: 'community', label: '社区', path: '/community', icon: 'M16 11a4 4 0 1 0-8 0M3 21v-2a5 5 0 0 1 10 0v2M14 21v-2a5 5 0 0 1 7 0v2' }
+  { key: 'community', label: '社区', path: '/community', icon: 'M16 11a4 4 0 1 0-8 0M3 21v-2a5 5 0 0 1 10 0v2M14 21v-2a5 5 0 0 1 7 0v2' },
+  { key: 'admin', label: '后台管理', href: '/admin/index.html', icon: 'M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 13h7v7H4z' }
 ]
 
 // 用路由 name 判断当前高亮（和 router 的 name 对应）
@@ -44,18 +45,29 @@ const initial = computed(() =>
       </div>
 
       <nav class="nav-links">
-        <button
-          v-for="item in navItems"
-          :key="item.key"
-          class="nav-link"
-          :class="{ active: activeKey === item.key }"
-          @click="go(item.path)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path :d="item.icon" />
-          </svg>
-          <span>{{ item.label }}</span>
-        </button>
+        <template v-for="item in navItems" :key="item.key">
+          <a
+            v-if="item.href"
+            class="nav-link nav-admin"
+            :href="item.href"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="item.icon" />
+            </svg>
+            <span>{{ item.label }}</span>
+          </a>
+          <button
+            v-else
+            class="nav-link"
+            :class="{ active: activeKey === item.key }"
+            @click="go(item.path)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="item.icon" />
+            </svg>
+            <span>{{ item.label }}</span>
+          </button>
+        </template>
       </nav>
 
       <div class="nav-user">
@@ -118,6 +130,13 @@ const initial = computed(() =>
   background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta));
   box-shadow: 0 6px 18px rgba(45, 226, 230, .4);
 }
+.nav-link.nav-admin {
+  text-decoration: none; cursor: pointer;
+  color: #04121f; font-weight: 600;
+  background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta));
+  box-shadow: 0 6px 18px rgba(45, 226, 230, .4);
+}
+.nav-link.nav-admin:hover { color: #04121f; filter: brightness(1.08); }
 
 .nav-user { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .avatar {

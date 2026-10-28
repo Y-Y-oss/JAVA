@@ -14,6 +14,11 @@ export default defineConfig({
       '/api': {
         target: API_TARGET,
         changeOrigin: true
+      },
+      // 后台管理静态页（static/admin/index.html）也由后端托管，开发环境一并代理
+      '/admin': {
+        target: API_TARGET,
+        changeOrigin: true
       }
     }
   }

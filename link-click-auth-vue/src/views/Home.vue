@@ -429,7 +429,7 @@ onBeforeUnmount(stopAuto)
 .home {
   position: relative;
   z-index: 2;
-  min-height: 100%;
+  height: 100vh;
   overflow-y: auto;
   color: #eef2ff;
 }

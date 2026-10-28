@@ -162,7 +162,7 @@ onMounted(() => load(true))
 </template>
 
 <style scoped>
-.page { position: relative; z-index: 2; min-height: 100%; overflow-y: auto; color: #eef2ff; }
+.page { position: relative; z-index: 2; height: 100vh; overflow-y: auto; color: #eef2ff; }
 .content { max-width: 1180px; margin: 0 auto; padding: 40px 22px 60px; }
 .head { text-align: center; margin-bottom: 22px; }
 .head h1 { font-size: 28px; font-weight: 600; letter-spacing: 2px; }

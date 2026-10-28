@@ -51,4 +51,46 @@ public interface ArchiveMapper extends BaseMapper<Archive> {
             "     OR content LIKE CONCAT('%',#{q},'%') " +
             "     OR tag LIKE CONCAT('%',#{q},'%'))")
     long countSearchPublic(@Param("q") String q);
+
+    /**
+     * 后台档案列表：跨所有用户，JOIN 出所属用户名，支持关键词(标题/内容/标签)与可见性过滤。
+     */
+    @Select("<script>" +
+            "SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, " +
+            "a.visibility, a.create_time, a.update_time " +
+            "FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
+            "<where>" +
+            "<if test='keyword != null and keyword != \"\"'>" +
+            "AND (a.title LIKE CONCAT('%',#{keyword},'%') " +
+            "OR a.content LIKE CONCAT('%',#{keyword},'%') " +
+            "OR a.tag LIKE CONCAT('%',#{keyword},'%')) " +
+            "</if>" +
+            "<if test='visibility != null'>" +
+            "AND a.visibility = #{visibility} " +
+            "</if>" +
+            "</where>" +
+            "ORDER BY a.update_time DESC LIMIT #{offset}, #{size}" +
+            "</script>")
+    List<Map<String, Object>> selectAdminList(@Param("keyword") String keyword,
+                                             @Param("visibility") Integer visibility,
+                                             @Param("offset") long offset,
+                                             @Param("size") long size);
+
+    /**
+     * 后台档案总数（与 selectAdminList 的过滤条件保持一致）
+     */
+    @Select("<script>" +
+            "SELECT COUNT(*) FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
+            "<where>" +
+            "<if test='keyword != null and keyword != \"\"'>" +
+            "AND (a.title LIKE CONCAT('%',#{keyword},'%') " +
+            "OR a.content LIKE CONCAT('%',#{keyword},'%') " +
+            "OR a.tag LIKE CONCAT('%',#{keyword},'%')) " +
+            "</if>" +
+            "<if test='visibility != null'>" +
+            "AND a.visibility = #{visibility} " +
+            "</if>" +
+            "</where>" +
+            "</script>")
+    long countAdminList(@Param("keyword") String keyword, @Param("visibility") Integer visibility);
 }

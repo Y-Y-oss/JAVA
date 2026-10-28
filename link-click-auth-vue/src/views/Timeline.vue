@@ -172,7 +172,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page { position: relative; z-index: 2; min-height: 100%; overflow-y: auto; color: #eef2ff; }
+.page { position: relative; z-index: 2; height: 100vh; overflow-y: auto; color: #eef2ff; }
 .content { max-width: 880px; margin: 0 auto; padding: 40px 22px 60px; }
 .head { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
 .head > div { flex: 1; }
