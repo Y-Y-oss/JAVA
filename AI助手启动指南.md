@@ -29,9 +29,7 @@ net start MySQL80
   --default-character-set=utf8mb4 < springBootTest/sql/link_click_auth.sql
 
 # 3. 后端(Maven 不在 PATH;二选一;关键:必须去掉 SERVER__PORT!)
-cd springBootTest && env -u SERVER__PORT \
-  "D:/IntelliJ IDEA 2024.3.2.2/plugins/maven/lib/maven3/bin/mvn.cmd" -q spring-boot:run
-# 或:./mvnw.cmd spring-boot:run (mvnw 是 only-script 类型,首次会下载 Maven 发行版)
+cd springBootTest && env -u SERVER__PORT ./mvnw.cmd -q spring-boot:run
 
 # 4. 前端(node_modules 已被重置删除,必须先装依赖)
 cd link-click-auth-vue && npm ci --no-audit --no-fund && npm run dev
@@ -41,7 +39,7 @@ cd link-click-auth-vue && npm ci --no-audit --no-fund && npm run dev
 
 1. **`SERVER__PORT=63302`**:WorkBuddy 终端环境变量,会被 Spring Boot relaxed binding 当成 `server.port`,顶掉 8081 → 前端代理 500。bash 里用 `env -u SERVER__PORT`;bat 里已 `set "SERVER__PORT="`。在 IDEA 里跑不受影响。
 2. **「系统繁忙」= 数据库没连上**(多半是库不存在),不是验证码问题;「账号或密码错误」才是 DB 正常的标志。
-3. Maven 不在 PATH。用 IDEA 自带的 `D:\IntelliJ IDEA 2024.3.2.2\plugins\maven\lib\maven3\bin\mvn.cmd` 或项目内 `mvnw.cmd`。Java(zulu 21)在 PATH。
+3. Maven 不在 PATH。~~IDEA 自带 maven3 路径已失效(2026-10-29 确认 `D:\IntelliJ IDEA 2024.3.2.2` 下无 Maven)~~ **统一用项目内 `./mvnw.cmd`**,wrapper 缓存在 `~/.m2/wrapper/dists/apache-maven-3.9.9*`,完好可用。Java 17 在 PATH。
 4. 图形验证码存内存不落库,**后端一重启全部验证码失效,属正常现象**,不是 bug。
 
 ## 已修过的问题(别改回去)
