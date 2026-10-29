@@ -25,7 +25,8 @@ export function register(payload) {
  * 用户登录  POST /api/auth/login
  * @param {{account:string,password:string}} payload account 支持用户名或手机号
  * @returns { data: { accessToken, refreshToken, tokenType, expiresIn, refreshExpiresIn,
- *                    id, username, phone, nickname, role } }
+ *                    id, username, phone, nickname, role, permission } }
+ *           permission：1-默认权限（普通用户），0-管理员权限（可进入后台管理系统）
  *          后端对「账号不存在 / 密码错误 / 账号禁用」统一返回"账号或密码错误"（防账号枚举）
  */
 export function login(payload) {

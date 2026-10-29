@@ -8,10 +8,8 @@ import com.fenglin.springboottest.enums.UserRole;
 import com.fenglin.springboottest.mapper.RefreshTokenMapper;
 import com.fenglin.springboottest.mapper.UserMapper;
 import com.fenglin.springboottest.service.AuthService;
-import com.fenglin.springboottest.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -64,25 +62,15 @@ public class AdminUserController {
     @Autowired
     private RefreshTokenMapper refreshTokenMapper;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
     /** 从 Authorization 头取出不含 Bearer 前缀的 token */
     private String resolveToken(String authorization) {
         return authorization == null ? "" : authorization.replaceFirst("(?i)^Bearer\\s+", "").trim();
     }
 
-    /** 校验是管理员，返回管理员实体 */
+    /** 校验是管理员（基于 permission 字段，0-管理员权限），返回管理员实体 */
     private User requireAdmin(String authorization) {
         String token = resolveToken(authorization);
-        if (!StringUtils.hasText(token)) {
-            throw new BusinessException(401, "未携带登录凭证，请重新登录");
-        }
-        authService.checkRole(token, UserRole.ADMIN.getCode());
-        return userMapper.selectById(jwtUtil.getUserId(token));
+        return authService.requireAdmin(token);
     }
 
     // ============================ 1. 统计概览 ============================
@@ -96,7 +84,7 @@ public class AdminUserController {
         data.put("total", userMapper.selectCount(null));
         data.put("active", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getStatus, 1)));
         data.put("disabled", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getStatus, 0)));
-        data.put("admins", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getRole, UserRole.ADMIN.getCode())));
+        data.put("admins", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getPermission, 0)));
         data.put("todayNew", userMapper.selectCount(new LambdaQueryWrapper<User>().ge(User::getCreateTime, todayStart)));
         return R.ok("查询成功", data);
     }
@@ -200,6 +188,8 @@ public class AdminUserController {
         User update = new User();
         update.setId(id);
         update.setRole(role);
+        // permission 与 role 保持同步：admin -> 0（管理员权限），user -> 1（默认权限）
+        update.setPermission(UserRole.ADMIN.getCode().equals(role) ? 0 : 1);
         userMapper.updateById(update);
 
         log.info("管理员 {} 将 userId={} 的角色调整为 {}", admin.getUsername(), id, role);
@@ -222,7 +212,7 @@ public class AdminUserController {
 
         User update = new User();
         update.setId(id);
-        update.setPassword(passwordEncoder.encode(password));
+        update.setPassword(password);
         // 密码版本号 +1：该用户已签发的所有旧 token 立即失效
         update.setPwdVersion((user.getPwdVersion() == null ? 1 : user.getPwdVersion()) + 1);
         userMapper.updateById(update);
@@ -270,6 +260,7 @@ public class AdminUserController {
         m.put("nickname", u.getNickname());
         m.put("status", u.getStatus());
         m.put("role", u.getRole());
+        m.put("permission", u.getPermission());
         m.put("lastLoginTime", u.getLastLoginTime());
         m.put("createTime", u.getCreateTime());
         return m;

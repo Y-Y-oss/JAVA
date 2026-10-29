@@ -5,10 +5,8 @@ import com.fenglin.springboottest.common.BusinessException;
 import com.fenglin.springboottest.common.R;
 import com.fenglin.springboottest.dto.ArchiveDTO;
 import com.fenglin.springboottest.entity.Archive;
-import com.fenglin.springboottest.enums.UserRole;
 import com.fenglin.springboottest.mapper.ArchiveMapper;
 import com.fenglin.springboottest.service.AuthService;
-import com.fenglin.springboottest.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -56,21 +54,15 @@ public class AdminArchiveController {
     @Autowired
     private ArchiveMapper archiveMapper;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
     /** 从 Authorization 头取出不含 Bearer 前缀的 token */
     private String resolveToken(String authorization) {
         return authorization == null ? "" : authorization.replaceFirst("(?i)^Bearer\\s+", "").trim();
     }
 
-    /** 校验是管理员 */
+    /** 校验是管理员（基于 permission 字段，0-管理员权限） */
     private void requireAdmin(String authorization) {
         String token = resolveToken(authorization);
-        if (!StringUtils.hasText(token)) {
-            throw new BusinessException(401, "未携带登录凭证，请重新登录");
-        }
-        authService.checkRole(token, UserRole.ADMIN.getCode());
+        authService.requireAdmin(token);
     }
 
     // ============================ 1. 档案统计 ============================

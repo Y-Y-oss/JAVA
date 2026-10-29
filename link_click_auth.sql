@@ -74,7 +74,7 @@ CREATE TABLE `lc_user`  (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键id',
   `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名（唯一）',
   `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '手机号（选填，非空时唯一）',
-  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码（BCrypt 哈希，不存明文）',
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码（明文存储，按需求不加密）',
   `nickname` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '昵称，默认与用户名一致',
   `role` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'user' COMMENT '角色：user-普通用户，admin-管理员',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '账号状态：1-正常，0-禁用',
@@ -82,6 +82,7 @@ CREATE TABLE `lc_user`  (
   `last_login_time` datetime NULL DEFAULT NULL COMMENT '最近一次登录时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `permission` tinyint NOT NULL DEFAULT 1 COMMENT '权限：1-默认权限（普通用户，不可进入后台管理系统）/ 0-管理员权限（可看到后台管理入口并登录后台）',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_lc_user_username`(`username` ASC) USING BTREE,
   UNIQUE INDEX `uk_lc_user_phone`(`phone` ASC) USING BTREE,
@@ -91,9 +92,9 @@ CREATE TABLE `lc_user`  (
 -- ----------------------------
 -- Records of lc_user
 -- ----------------------------
-INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '$2a$10$BCOIjfKAsurIU1kEh1JSwOF3TTzrD25CnqhwGQ1xZpHwfB0F6IpeW', 'tester01', 'user', 1, 1, '2026-10-09 14:33:30', '2026-10-09 14:33:27', '2026-10-09 14:33:29');
--- 后台管理账号：admin / admin123（role=admin，BCrypt 哈希）
-INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', 'admin', 1, 1, NULL, '2026-10-28 00:00:00', '2026-10-28 00:00:00');
+INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '123456', 'tester01', 'user', 1, 1, '2026-10-09 14:33:30', '2026-10-09 14:33:27', '2026-10-09 14:33:29', 1);
+-- 后台管理账号：admin / admin123（role=admin，permission=0 管理员权限，密码明文存储）
+INSERT INTO `lc_user` VALUES (3, 'admin', NULL, 'admin123', '超级管理员', 'admin', 1, 1, NULL, '2026-10-28 00:00:00', '2026-10-28 00:00:00', 0);
 
 -- ----------------------------
 -- Table structure for lc_archive
@@ -123,5 +124,21 @@ INSERT INTO `lc_archive` VALUES (3, 1, '天台上的告白', '跨年钟声倒数
 INSERT INTO `lc_archive` VALUES (4, 1, '跨年烟火下的约定', '我们说好每一年跨年都要在同一个地方见面，看同一场烟火。今年是你缺席的第一年。', '2020-12-31', '约定', 1, '2026-10-09 15:15:00', '2026-10-09 15:15:00');
 INSERT INTO `lc_archive` VALUES (5, 1, '旧巷口的猫', '巷口那只橘猫又生了三宝，路过时它还是会蹭我的裤脚。有些陪伴不需要名字，也不需要结局。', '2022-03-15', '私语', 0, '2026-10-09 15:20:00', '2026-10-09 15:20:00');
 INSERT INTO `lc_archive` VALUES (6, 1, '雨夜便利店', '加班到凌晨，便利店的关东煮和那首老歌，是这座城市留给独行人的温柔。', '2023-06-02', '私语', 0, '2026-10-09 15:25:00', '2026-10-09 15:25:00');
+
+-- ----------------------------
+-- 迁移脚本：为「已存在且尚未含 permission 字段」的库补列，并让 permission 与 role 对齐
+-- （全新导入本文件时字段已存在，下面的判断会自动跳过 ALTER，UPDATE 用于修正历史数据）
+-- ----------------------------
+SET @__exist_permission = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'lc_user' AND column_name = 'permission');
+SET @__add_permission_sql = IF(@__exist_permission = 0,
+  "ALTER TABLE `lc_user` ADD COLUMN `permission` tinyint NOT NULL DEFAULT 1 COMMENT '权限：1-默认权限（普通用户，不可进入后台管理系统）/ 0-管理员权限（可看到后台管理入口并登录后台）' AFTER `update_time`",
+  "SELECT 1");
+PREPARE __stmt FROM @__add_permission_sql;
+EXECUTE __stmt;
+DEALLOCATE PREPARE __stmt;
+
+-- 让 permission 与 role 保持一致：admin 角色 -> 0（管理员权限），其余 -> 1（默认权限）
+UPDATE `lc_user` SET `permission` = 0 WHERE `role` = 'admin' AND (`permission` IS NULL OR `permission` <> 0);
+UPDATE `lc_user` SET `permission` = 1 WHERE (`role` IS NULL OR `role` <> 'admin') AND (`permission` IS NULL OR `permission` <> 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

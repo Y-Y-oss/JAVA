@@ -461,7 +461,7 @@ function doLogin() {
     body: JSON.stringify({ account: u, password: p })
   }).then(function (r) { return r.json(); }).then(function (json) {
     if (json.code !== 200) { err.textContent = json.message || '登录失败'; return; }
-    if (json.data.role !== 'admin') {
+    if (json.data.permission !== 0) {
       err.textContent = '该账号不是管理员，无权访问后台';
       return;
     }

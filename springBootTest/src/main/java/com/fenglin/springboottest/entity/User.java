@@ -36,8 +36,14 @@ public class User implements Serializable {
     /** 账号状态：1-正常，0-禁用 */
     private Integer status;
 
-    /** 角色：user（普通用户）/ admin（管理员），对应 enums.UserRole */
+    /** 角色：user（普通用户）/ admin（管理员），对应 enums.UserRole（展示用，与 permission 保持一致） */
     private String role;
+
+    /**
+     * 权限：1-默认权限（普通用户，进入后台管理系统），0-管理员权限（可看到后台管理入口并登录后台）
+     * <p>注意：后台管理系统的可见性与可登录性统一以本字段为准。</p>
+     */
+    private Integer permission;
 
     /** 密码版本号：修改密码时 +1，使所有已签发的旧 token 立即失效 */
     private Integer pwdVersion;

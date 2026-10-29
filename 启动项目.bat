@@ -69,15 +69,15 @@ if errorlevel 1 (
   echo        已存在,跳过
 )
 
-rem ---- 4. 后端 8081 ----
-echo [3/5] 检查后端端口 8081...
-netstat -ano | findstr ":8081 " | findstr LISTENING >nul
-if not errorlevel 1 (
-  echo        后端已在运行,跳过
-) else (
-  echo        启动后端 Spring Boot,新窗口 LinkClick-Backend
-  start "LinkClick-Backend" /D "%~dp0springBootTest" cmd /k call "%MVN_CMD%" -q spring-boot:run
+rem ---- 4. 后端 8081 (若端口已被占用,先结束旧进程,确保每次都部署最新代码) ----
+echo [3/5] 启动后端 Spring Boot (8081)...
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":8081 " ^| findstr LISTENING') do (
+  echo        8081 被 PID=%%a 占用,先结束旧进程以部署最新代码
+  taskkill /F /PID %%a >nul 2>&1
 )
+timeout /t 2 >nul
+echo        启动后端,新窗口 LinkClick-Backend
+start "LinkClick-Backend" /D "%~dp0springBootTest" cmd /k call "%MVN_CMD%" -q spring-boot:run
 
 rem ---- 5. 前端 5173 ----
 echo [4/5] 检查前端端口 5173...

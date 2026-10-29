@@ -27,7 +27,7 @@ SET @sql = IF(
     `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT ''主键id'',
     `username`   VARCHAR(50)     NOT NULL                COMMENT ''用户名（唯一）'',
     `phone`      VARCHAR(20)     DEFAULT NULL            COMMENT ''手机号（选填，非空时唯一；MySQL 唯一索引允许存在多行 NULL）'',
-    `password`   VARCHAR(100)    NOT NULL                COMMENT ''密码（BCrypt 哈希，不存明文）'',
+    `password`   VARCHAR(100)    NOT NULL                COMMENT ''密码（明文存储，按需求不加密）'',
     `nickname`   VARCHAR(50)     DEFAULT NULL            COMMENT ''昵称，默认与用户名一致'',
     `role`       VARCHAR(20)     NOT NULL DEFAULT ''user'' COMMENT ''角色：user-普通用户，admin-管理员'',
     `status`     TINYINT         NOT NULL DEFAULT 1      COMMENT ''账号状态：1-正常，0-禁用'',
@@ -35,6 +35,7 @@ SET @sql = IF(
     `last_login_time` DATETIME   NULL                    COMMENT ''最近一次登录时间'',
     `create_time` DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT ''创建时间'',
     `update_time` DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT ''更新时间'',
+    `permission` TINYINT         NOT NULL DEFAULT 1      COMMENT ''权限：1-默认权限（普通用户），0-管理员权限（可进入后台管理系统）'',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_lc_user_username` (`username`),
     UNIQUE KEY `uk_lc_user_phone` (`phone`),
@@ -96,11 +97,9 @@ CREATE TABLE `lc_refresh_token`
   COMMENT = '时光代理人-刷新令牌表（双令牌方案）';
 
 -- 5. 演示数据（可选，方便本地验证登录/注册）------------------------------------
--- 注意：下面密码明文为 123456，已用 BCrypt 生成（$2a$10$ 开头），可直接插入。
--- INSERT INTO `lc_user` (`username`, `phone`, `password`, `nickname`)
--- VALUES ('linkclick', '13800000000',
---         '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
---         '时光代理人');
+-- 注意：按需求密码以明文存储（不加密）。下面示例密码为明文 123456。
+-- INSERT INTO `lc_user` (`username`, `phone`, `password`, `nickname`, `role`, `permission`)
+-- VALUES ('linkclick', '13800000000', '123456', '时光代理人', 'user', 1);
 
 -- 6. 增量升级（已建过表时执行，可重复运行）--------------------------------------
 -- 给早期建好的 lc_user 补上 last_login_time 列（用 information_schema 判断，避免重复添加报错）
@@ -139,6 +138,22 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- 给早期建好的 lc_user 补上 permission 列（权限：1-默认权限，0-管理员权限）
+SET @exist := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'link_click_auth' AND TABLE_NAME = 'lc_user' AND COLUMN_NAME = 'permission'
+);
+SET @sql := IF(@exist = 0,
+    'ALTER TABLE `lc_user` ADD COLUMN `permission` TINYINT NOT NULL DEFAULT 1 COMMENT ''权限：1-默认权限（普通用户），0-管理员权限（可进入后台管理系统）'' AFTER `update_time`',
+    'SELECT ''lc_user.permission 已存在，跳过''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 让 permission 与 role 对齐：admin 角色 -> 0（管理员权限），其余 -> 1（默认权限）
+UPDATE `lc_user` SET `permission` = 0 WHERE `role` = 'admin' AND (`permission` IS NULL OR `permission` <> 0);
+UPDATE `lc_user` SET `permission` = 1 WHERE (`role` IS NULL OR `role` <> 'admin') AND (`permission` IS NULL OR `permission` <> 1);
+
 -- 为早期未建过刷新令牌表的实例补表（可重复运行）
 SET @exist := (
     SELECT COUNT(*) FROM information_schema.TABLES
@@ -171,8 +186,8 @@ DEALLOCATE PREPARE stmt;
 -- 7. 常用维护语句 ------------------------------------------------------------
 -- 清空验证码表：DELETE FROM `lc_sms_code`;
 -- 查看注册用户：SELECT id, username, role, status, create_time FROM `lc_user`;
--- 把某个账号提为管理员（演示「权限不足」用）：
--- UPDATE `lc_user` SET `role` = 'admin' WHERE `username` = 'lc_demo';
+-- 把某个账号提为管理员（演示「权限不足」用）：role 与 permission 需同时设置
+-- UPDATE `lc_user` SET `role` = 'admin', `permission` = 0 WHERE `username` = 'lc_demo';
 -- 查看当前生效的会话：SELECT user_id, family_id, revoked, revoked_reason, expires_at FROM `lc_refresh_token` WHERE revoked = 0;
 -- 手动吊销某用户所有会话：UPDATE `lc_refresh_token` SET revoked = 2, revoked_reason = 'manual' WHERE user_id = 1 AND revoked = 0;
 

@@ -6,6 +6,7 @@ import com.fenglin.springboottest.dto.LoginDTO;
 import com.fenglin.springboottest.dto.RegisterDTO;
 import com.fenglin.springboottest.dto.ResetPasswordDTO;
 import com.fenglin.springboottest.dto.UpdateProfileDTO;
+import com.fenglin.springboottest.entity.User;
 
 import java.util.Map;
 
@@ -84,4 +85,13 @@ public interface AuthService {
      * @param requiredRoles  所需角色，为空表示「只要登录即可」
      */
     void checkRole(String token, String... requiredRoles);
+
+    /**
+     * 管理员鉴权：基于 permission 字段（0-管理员权限）校验当前登录用户。
+     * 未登录 / 账号被禁用 / 权限不足（permission != 0）均会抛异常。
+     *
+     * @param token 不含 Bearer 前缀的 token
+     * @return 通过校验的管理员用户实体
+     */
+    User requireAdmin(String token);
 }

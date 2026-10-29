@@ -47,7 +47,7 @@ const initial = computed(() =>
       <nav class="nav-links">
         <template v-for="item in navItems" :key="item.key">
           <a
-            v-if="item.href"
+            v-if="item.href && user?.permission === 0"
             class="nav-link nav-admin"
             :href="item.href"
           >
@@ -57,7 +57,7 @@ const initial = computed(() =>
             <span>{{ item.label }}</span>
           </a>
           <button
-            v-else
+            v-else-if="!item.href"
             class="nav-link"
             :class="{ active: activeKey === item.key }"
             @click="go(item.path)"
@@ -74,7 +74,7 @@ const initial = computed(() =>
         <div class="avatar" :title="user?.nickname || user?.username">{{ initial }}</div>
         <div class="u-meta">
           <span class="u-name">{{ user?.nickname || user?.username }}</span>
-          <span class="u-role">{{ user?.role === 'admin' ? '管理员' : '时光代理人' }}</span>
+          <span class="u-role">{{ user?.permission === 0 ? '管理员' : '时光代理人' }}</span>
         </div>
         <button class="logout-btn" @click="onLogout" title="退出登录">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
