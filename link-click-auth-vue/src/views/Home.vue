@@ -8,7 +8,7 @@ import {
   fetchArchives, getArchive, searchArchives,
   createArchive, updateArchive, deleteArchive
 } from '../api/home'
-import { coverStyle, hasCover, ARCHIVE_COVER, KNOWN_TAGS } from '../utils/archiveStyle'
+import { coverStyle, hasCover, coverUrl, KNOWN_TAGS } from '../utils/archiveStyle'
 
 // 由 App.vue 通过 provide 注入：登录用户、退出登录、全局提示
 const user = inject('appUser')
@@ -126,8 +126,65 @@ function goF(i) {
 }
 const curFeatured = computed(() => featured.value[fIdx.value] || null)
 const curPhoto = computed(() =>
-  curFeatured.value && hasCover(curFeatured.value) ? ARCHIVE_COVER[curFeatured.value.id] : ''
+  curFeatured.value && hasCover(curFeatured.value) ? coverUrl(curFeatured.value) : ''
 )
+
+/* ===== 时光胶片墙（借鉴 B 站滚动照片墙：双排反向无缝滚动） ===== */
+// 胶片带 = 全部 gallery 素材（14 张风格统一，素材充足不重复）
+const GALLERY_IMGS = Array.from({ length: 14 }, (_, i) => `/img/gallery/g${i + 1}.png`)
+// 每条档案绑定的封面图（用于胶片墙点击时跳转对应档案；其余照片点开灯箱）
+const ARCHIVE_TO_COVER = computed(() => {
+  const m = {}
+  for (const a of archives.value) {
+    if (hasCover(a)) m[coverUrl(a)] = a
+  }
+  return m
+})
+
+// 基础胶片：14 张素材，每张都不同
+const filmBase = computed(() =>
+  GALLERY_IMGS.map((src) => {
+    const arch = ARCHIVE_TO_COVER.value[src]
+    return {
+      src,
+      cap: arch ? arch.title : '',
+      id: arch ? arch.id : null
+    }
+  })
+)
+const filmRow1 = computed(() => {
+  const b = filmBase.value
+  return b.concat(b)
+})
+const filmRow2 = computed(() => {
+  // 第二排从中间错位开始反向排列，避免与第一排同时出现同一张照片
+  const b = filmBase.value
+  const half = Math.floor(b.length / 2)
+  const shifted = b.slice(half).concat(b.slice(0, half))
+  return shifted.reverse().concat(shifted.slice().reverse())
+})
+function openFilm(item) {
+  if (item.id != null) {
+    const a = archives.value.find((x) => x.id === item.id)
+    if (a) return openDetail(a)
+  }
+  openLightbox(item.src, item.cap)
+}
+
+/* ===== 灯箱预览 ===== */
+const lbOpen = ref(false)
+const lbSrc = ref('')
+const lbCap = ref('')
+function openLightbox(src, cap) {
+  lbSrc.value = src
+  lbCap.value = cap || ''
+  lbOpen.value = true
+}
+function closeLightbox() {
+  lbOpen.value = false
+  lbSrc.value = ''
+  lbCap.value = ''
+}
 
 /* ===== 分类区块 ===== */
 const sections = computed(() =>
@@ -284,6 +341,33 @@ onBeforeUnmount(stopAuto)
         </div>
       </section>
 
+      <!-- 时光胶片墙：双排反向无缝滚动 -->
+      <section class="filmwall" v-if="!isSearching">
+        <div class="sec-head">
+          <div class="sec-title">
+            <h2>时光胶片墙</h2>
+            <span class="sec-sub">FILM WALL</span>
+          </div>
+          <span class="film-hint">▸ 悬停暂停 · 点击打开档案</span>
+        </div>
+        <div class="film-row">
+          <div class="film-track t1">
+            <figure v-for="(f, i) in filmRow1" :key="'r1' + i" class="film" @click="openFilm(f)">
+              <img :src="f.src" :alt="f.cap || '时光' " loading="lazy" />
+              <figcaption v-if="f.cap">{{ f.cap }}</figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="film-row">
+          <div class="film-track t2">
+            <figure v-for="(f, i) in filmRow2" :key="'r2' + i" class="film" @click="openFilm(f)">
+              <img :src="f.src" :alt="f.cap || '时光' " loading="lazy" />
+              <figcaption v-if="f.cap">{{ f.cap }}</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       <!-- 历史上的今天 -->
       <section class="otd" v-if="!isSearching && onThisDay.length">
         <div class="otd-head">
@@ -319,7 +403,7 @@ onBeforeUnmount(stopAuto)
         <div class="fc-stage" @mouseenter="stopAuto" @mouseleave="startAuto">
           <button class="fc-nav prev" @click="goF(fIdx - 1)" aria-label="上一张">‹</button>
 
-          <div class="fc-card" v-if="curFeatured" @click="openDetail(curFeatured)">
+          <div class="fc-card" v-if="curFeatured" :key="curFeatured.id" @click="openDetail(curFeatured)">
             <div class="fc-cover">
               <img v-if="curPhoto" class="fc-photo" :src="curPhoto" :alt="curFeatured.title" />
               <div v-else class="fc-illus" :style="{ background: coverStyle(curFeatured).background }"></div>
@@ -422,6 +506,17 @@ onBeforeUnmount(stopAuto)
       @delete="onDelete"
     />
     <ArchiveForm :initial="formInitial" :show="formShow" @saved="onFormSaved" @close="onFormClose" />
+
+    <!-- 灯箱大图预览 -->
+    <Teleport to="body">
+      <div class="lightbox" v-if="lbOpen" @click.self="closeLightbox">
+        <button class="lb-close" @click="closeLightbox" aria-label="关闭">✕</button>
+        <figure class="lb-body">
+          <img :src="lbSrc" :alt="lbCap" />
+          <figcaption v-if="lbCap">{{ lbCap }}</figcaption>
+        </figure>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -526,7 +621,8 @@ onBeforeUnmount(stopAuto)
 .fc-nav:hover { color: #fff; border-color: var(--cyan); box-shadow: 0 0 16px rgba(45, 226, 230, .4); }
 .fc-nav.prev { left: 12px; }
 .fc-nav.next { right: 12px; }
-.fc-card { flex: 1; display: grid; grid-template-columns: 46% 1fr; min-height: 260px; border-radius: 18px; overflow: hidden; cursor: pointer; background: linear-gradient(160deg, rgba(18, 22, 52, .8), rgba(12, 14, 38, .7)); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 20px 50px rgba(0, 0, 0, .45); transition: .3s; }
+.fc-card { flex: 1; display: grid; grid-template-columns: 46% 1fr; min-height: 260px; border-radius: 18px; overflow: hidden; cursor: pointer; background: linear-gradient(160deg, rgba(18, 22, 52, .8), rgba(12, 14, 38, .7)); border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 20px 50px rgba(0, 0, 0, .45); transition: .3s; animation: fcIn .5s cubic-bezier(.2, .8, .2, 1); }
+@keyframes fcIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 .fc-card:hover { border-color: var(--cyan); box-shadow: 0 26px 60px rgba(45, 226, 230, .28); }
 .fc-cover { position: relative; min-height: 260px; background-size: cover; background-position: center; background-color: #0a0e27; overflow: hidden; }
 .fc-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -578,11 +674,64 @@ onBeforeUnmount(stopAuto)
 .empty-cta { margin-top: 6px; border: 1px solid rgba(255, 255, 255, .2); cursor: pointer; font-family: inherit; background: rgba(255, 255, 255, .06); color: #eef2ff; font-size: 13.5px; padding: 10px 22px; border-radius: 999px; transition: .22s; }
 .empty-cta:hover { color: #fff; border-color: var(--cyan); box-shadow: 0 0 12px rgba(45, 226, 230, .3); }
 
+/* ===== 时光胶片墙 ===== */
+.filmwall { margin-top: 40px; }
+.film-hint { margin-left: auto; font-size: 11.5px; color: #7e8ab0; letter-spacing: 1px; }
+.film-row { overflow: hidden; margin-bottom: 16px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.film-track { display: flex; gap: 16px; width: max-content; }
+.film-track.t1 { animation: filmScroll 60s linear infinite; }
+.film-track.t2 { animation: filmScroll 72s linear infinite reverse; }
+.film-row:hover .film-track { animation-play-state: paused; }
+@keyframes filmScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.film {
+  position: relative; flex: 0 0 280px; height: 176px; margin: 0;
+  border-radius: 14px; overflow: hidden; cursor: zoom-in;
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .4);
+  transition: transform .3s, border-color .3s, box-shadow .3s;
+}
+.film:nth-child(odd) { height: 200px; flex-basis: 250px; }
+.film:hover { transform: translateY(-6px) scale(1.03); border-color: var(--cyan); box-shadow: 0 20px 44px rgba(45, 226, 230, .3); z-index: 2; }
+.film img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s ease; }
+.film:hover img { transform: scale(1.08); }
+.film figcaption {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 26px 12px 9px; font-size: 12px; letter-spacing: 2px; color: #eef2ff;
+  background: linear-gradient(180deg, transparent, rgba(10, 14, 39, .85));
+}
+
+/* ===== 灯箱 ===== */
+.lightbox {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center; padding: 30px;
+  background: rgba(6, 8, 24, .88); backdrop-filter: blur(14px);
+  animation: lbFade .25s ease both;
+}
+@keyframes lbFade { from { opacity: 0; } to { opacity: 1; } }
+.lb-body { max-width: min(1080px, 92vw); animation: lbIn .32s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes lbIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+.lb-body img {
+  max-width: 100%; max-height: 78vh; display: block;
+  border-radius: 16px; border: 1px solid rgba(255, 255, 255, .2);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .7), 0 0 40px rgba(45, 226, 230, .18);
+}
+.lb-body figcaption { margin-top: 12px; text-align: center; font-size: 14px; letter-spacing: 2px; color: #cdd6f4; }
+.lb-close {
+  position: absolute; top: 22px; right: 26px; z-index: 2;
+  width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+  font-size: 17px; color: #eef2ff;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25);
+  transition: .25s;
+}
+.lb-close:hover { color: #fff; border-color: var(--magenta); box-shadow: 0 0 16px rgba(255, 72, 196, .45); transform: rotate(90deg); }
+
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
   .masonry { column-count: 3; }
   .fc-card { grid-template-columns: 1fr; }
   .fc-cover { min-height: 180px; }
+  .film { flex: 0 0 210px; height: 132px; }
+  .film:nth-child(odd) { flex-basis: 190px; height: 150px; }
 }
 @media (max-width: 600px) {
   .masonry { column-count: 2; }

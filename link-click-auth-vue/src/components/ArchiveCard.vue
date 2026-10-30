@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { coverStyle, coverColor, tagAccent, coverIcon, hasCover } from '../utils/archiveStyle'
+import { coverStyle, coverColor, tagAccent, coverIcon, hasCover, coverUrl } from '../utils/archiveStyle'
 
 const props = defineProps({
   archive: { type: Object, required: true },
@@ -10,7 +10,7 @@ const props = defineProps({
 })
 defineEmits(['open'])
 
-const photoUrl = computed(() => (hasCover(props.archive) ? `/img/archives/${props.archive.id}.png` : ''))
+const photoUrl = computed(() => (hasCover(props.archive) ? coverUrl(props.archive) : ''))
 const tagLabel = computed(() => props.archive?.tag || '时光')
 const accent = computed(() => tagAccent(props.archive?.tag))
 const iconPath = computed(() => coverIcon(props.archive?.tag))

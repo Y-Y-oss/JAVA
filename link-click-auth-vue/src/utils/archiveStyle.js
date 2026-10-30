@@ -36,7 +36,34 @@ export const TAG_ICONS = {
 export const DEFAULT_ICON = 'M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'
 export const coverIcon = (tag) => TAG_ICONS[tag] || DEFAULT_ICON
 
-// 封面照片：按 id 对应 public/img/archives/{id}.png（AI 生成的电影感主题图）
+// ===== 封面照片映射 =====
+// 两套来源，按优先级合成最终映射：
+//   1) SEMANTIC_COVER —— 按「标题/标签」语义匹配的图（新生成、与档案文字一一对应）；
+//   2) ARCHIVE_COVER —— 按 id 对应的通用主题图（public/img/archives/{id}.png）。
+// 语义匹配优先，命中不到的档案再回退到按 id 的通用封面。
+
+// 语义封面：标题关键词 → 图片。让每张照片真正对应到一段时光记录。
+// 注意：关键词必须精确、互斥，避免两条档案命中同一张图（造成胶片墙重复）。
+// 匹配顺序即优先级，靠前的规则先命中。
+export const SEMANTIC_COVER = [
+  { kw: ['雨夜便利', '便利店'], src: '/img/gallery/g4.png' },   // 雨夜便利店
+  { kw: ['未寄', '的信', '抽屉'], src: '/img/gallery/g3.png' }, // 未寄出的信
+  { kw: ['天台', '告白'], src: '/img/gallery/g2.png' },         // 天台上的告白
+  { kw: ['跨年', '约定', '烟火'], src: '/img/gallery/g5.png' }, // 跨年烟火下的约定
+  { kw: ['猫'], src: '/img/gallery/g6.png' },                   // 旧巷口的猫
+  { kw: ['雨中', '私语', '末班', '电车'], src: '/img/gallery/g1.png' } // 雨中私语
+]
+
+// 根据档案标题+标签匹配语义封面（无命中返回空串）
+export function semanticCoverUrl(m) {
+  const text = `${(m && m.title) || ''} ${(m && m.tag) || ''}`
+  for (const rule of SEMANTIC_COVER) {
+    if (rule.kw.some((k) => text.includes(k))) return rule.src
+  }
+  return ''
+}
+
+// 通用封面：按 id 对应 public/img/archives/{id}.png（AI 生成的电影感主题图）
 export const ARCHIVE_COVER = {
   1: '/img/archives/1.png',
   2: '/img/archives/2.png',
@@ -50,12 +77,17 @@ export const ARCHIVE_COVER = {
   10: '/img/archives/10.png'
 }
 
-// 是否有真实封面图（命中 ARCHIVE_COVER 且非 undefined）
-export const hasCover = (m) => !!ARCHIVE_COVER[m && m.id]
+// 档案最终的封面图地址：语义封面 > 按 id 通用封面 > 空
+export function coverUrl(m) {
+  return semanticCoverUrl(m) || ARCHIVE_COVER[m && m.id] || ''
+}
+
+// 是否有真实封面图
+export const hasCover = (m) => !!coverUrl(m)
 
 // 封面样式：有照片 → 照片+暗化渐变；无照片 → 回退渐变色（ArchiveCard 会叠加插画层）
 export function coverStyle(m) {
-  const url = ARCHIVE_COVER[m && m.id]
+  const url = coverUrl(m)
   if (url) {
     return {
       backgroundImage: `linear-gradient(180deg, rgba(10,14,39,.10) 0%, rgba(10,14,39,.70) 100%), url("${url}")`,

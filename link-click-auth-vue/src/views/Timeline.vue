@@ -4,7 +4,7 @@ import NavBar from '../components/NavBar.vue'
 import ArchiveDetail from '../components/ArchiveDetail.vue'
 import ArchiveForm from '../components/ArchiveForm.vue'
 import { fetchArchives, getArchive, createArchive, updateArchive, deleteArchive } from '../api/home'
-import { coverStyle, hasCover, ARCHIVE_COVER } from '../utils/archiveStyle'
+import { coverStyle, hasCover, coverUrl } from '../utils/archiveStyle'
 
 const notify = inject('appNotify')
 
@@ -49,7 +49,7 @@ function excerpt(m) {
   return c.length > 60 ? c.slice(0, 60) + '…' : c
 }
 function thumb(m) {
-  return hasCover(m) ? ARCHIVE_COVER[m.id] : ''
+  return hasCover(m) ? coverUrl(m) : ''
 }
 
 /* 详情 */
