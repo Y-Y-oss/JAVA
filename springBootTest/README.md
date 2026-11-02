@@ -1,6 +1,13 @@
-# 时光代理人 · 注册功能后端（springBootTest）
+# 时光代理人 · 后端服务（springBootTest）
 
-对应前端项目：`C:\Users\Administrator\Desktop\JAVA-main\时光代理人\link-click-auth-vue`
+对应前端项目：`D:\workSpace\JAVA\link-click-auth-vue`
+
+> 本项目是「时光代理人」的后端，包含三大块：
+> 1. **账号鉴权** —— 注册 / 登录 / 改密 / 角色权限（核心底座）
+> 2. **时光档案** —— 核心业务，用户记录属于自己的回忆档案，可公开到「档案墙」
+> 3. **管理后台** —— 仅管理员可用，管理用户与档案（配套静态页面 `static/admin/index.html`）
+
+---
 
 ## 1. 技术栈
 
@@ -11,26 +18,39 @@
 | 数据库层 | MyBatis-Plus 3.5.5（`mybatis-plus-spring-boot3-starter`） |
 | 连接池 | HikariCP |
 | 参数校验 | spring-boot-starter-validation |
-| 密码加密 | spring-security-crypto（BCrypt，强度 10） |
+| 密码加密 | spring-security-crypto（BCrypt，强度 10）—— **注意：当前鉴权流程并未调用它**，注册/登录/改密均为「明文存储 + 明文比对」，`BCryptPasswordEncoder` 这个 Bean 已定义但未被使用（见下方「已知问题」） |
+| 鉴权 | JWT（自包含 token + 密码版本号 `pwd_version` 踢人机制） |
+
+---
 
 ## 2. 建库建表
 
-脚本以文本形式保存在项目内：**`sql/link_click_auth.sql`**（可重复执行）。
+完整建表脚本在项目内，有两个副本（内容一致），任选其一执行即可：
+
+- 根目录：`link_click_auth.sql`（约 12KB，**推荐**，含全部表）
+- 子目录：`sql/link_click_auth.sql`
 
 ```bash
-"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p123456 < sql\link_click_auth.sql
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p123456 < link_click_auth.sql
 ```
-
-或者：
 
 ```sql
 mysql -uroot -p123456
-mysql> source D:/workSpace/springBootTest/sql/link_click_auth.sql;
+mysql> source D:/workSpace/JAVA/springBootTest/sql/link_click_auth.sql;
 ```
 
-- 数据库：`link_click_auth`（utf8mb4）
-- 表 `lc_user`：用户表，`username`、`phone` 各自唯一，密码存 BCrypt 哈希
-- 表 `lc_sms_code`：短信验证码，`expire_time` 控制有效期，`consumed` 标记是否已使用
+涉及的数据表：
+
+| 表 | 说明 |
+| --- | --- |
+| `lc_user` | 用户表。`username`、`phone` 各自唯一；密码存 BCrypt 哈希；含 `role`（user/admin）、`permission`（0-管理员/1-普通）、`status`（0-禁用/1-正常）、`pwd_version`（改密踢人用） |
+| `lc_sms_code` | 短信验证码，`expire_time` 控制有效期，`consumed` 标记是否已使用 |
+| `lc_archive` | 时光档案，`user_id` 关联用户，`visibility`（0-仅自己/1-公开），含标题/内容/时光节点/标签 |
+| `lc_refresh_token` | 刷新令牌，支持吊销（禁用用户/重置密码/删除用户时联动吊销） |
+
+> 管理后台与档案功能依赖上述全部表与字段。**只建了 `lc_user`/`lc_sms_code` 的旧库会跑不起来**，务必执行完整脚本。
+
+---
 
 ## 3. 接口
 
@@ -264,7 +284,7 @@ GET /api/demo/archives/all      仅管理员可读（含机密档案）
 | username | 2-20 位，中英文/数字/下划线/中划线，全局唯一 |
 | phone | `^1[3-9]\d{9}$`；重置密码场景下还要求该手机号已注册 |
 | code | 6 位数字，5 分钟内有效，一次性使用 |
-| password | 6-20 位，BCrypt 加密入库；重置时不能与旧密码相同 |
+| password | 6-20 位；**当前实现为明文存储/明文比对，并未经 BCrypt 加密**（存在安全隐患，见「已知问题」）；重置时不能与旧密码相同 |
 | confirmPassword | 必须与 password 一致 |
 | nickname | 1-50 位 |
 | role | `user` / `admin`，未知值按 `user` 处理（最小权限） |
@@ -275,29 +295,112 @@ GET /api/demo/archives/all      仅管理员可读（含机密档案）
 鉴权三道关卡（见 `AuthServiceImpl#requireLoginUser`）：是否已登出 → 用户是否存在/是否禁用
 → token 里的密码版本号是否与数据库一致。
 
-### 3.11 过期验证码清理
+### 3.11 时光档案接口（`ArchiveController` → `/api/archives`）
 
-`common/SmsCodeCleaner` 每天凌晨 3:20 执行一次，删除 `expire_time` 早于「当前时间 - 
-`auth.sms.cleanup-retention-hours`（默认 24 小时）」的记录。验证码本身 5 分钟就过期，
-清理给得比它宽裕得多，不会影响任何正在进行的校验。
+「时光代理人」核心业务，每位用户可记录属于自己的时光档案（一段回忆 / 一封信 / 一个约定），可选择公开到档案墙。
 
-## 4. 代码结构
+| # | 接口 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| 1 | `GET /api/archives?page=1&size=10` | 登录 | 我的档案列表（按更新时间倒序） |
+| 2 | `GET /api/archives/{id}` | 登录 | 档案详情（只能看自己的，或别人公开的） |
+| 3 | `POST /api/archives` | 登录 | 新建档案（body 见 `ArchiveDTO`：title/content/archiveDate/tag/visibility） |
+| 4 | `PUT /api/archives/{id}` | 登录 | 编辑档案（只能改自己的） |
+| 5 | `DELETE /api/archives/{id}` | 登录 | 删除档案（只能删自己的） |
+| 6 | `GET /api/archives/public?page=1` | 无需 | 公开档案墙（visibility=1，带作者用户名） |
+| 7 | `GET /api/archives/search?q=关键字` | 登录 | 搜索我的档案（标题/内容/标签/日期） |
+| 8 | `GET /api/archives/public/search?q=关键字` | 无需 | 搜索公开档案墙（跨所有用户，带作者名） |
+
+`archiveDate` 格式为 `yyyy-MM-dd`；`visibility` 为 `1` 公开 / `0` 仅自己。
+
+### 3.12 管理后台接口（`AdminUserController` / `AdminArchiveController`，仅 ADMIN）
+
+所有接口都要求管理员角色（基于 `lc_user.permission=0` 判断），从 `Authorization: Bearer xxx` 头解析。
+**管理员不能对自己执行：禁用、删除、角色降级**（避免把自己锁在门外）。
+
+#### 用户管理 `/api/admin`
+
+| # | 接口 | 方法 | 说明 |
+| --- | --- | --- | --- |
+| 1 | `/api/admin/stats` | GET | 统计概览：总用户数 / 正常 / 禁用 / 管理员数 / 今日新增 |
+| 2 | `/api/admin/users?keyword=&status=&page=1&size=10` | GET | 用户列表（分页 + 关键词匹配 用户名/昵称/手机号 + 状态过滤，密码不返回） |
+| 3 | `/api/admin/users/{id}/status` | PUT | 启用/禁用（`{status:0\|1}`，禁用会吊销该用户全部刷新令牌） |
+| 4 | `/api/admin/users/{id}/role` | PUT | 角色调整（`{role:"user"\|"admin"}`，同步 `permission`） |
+| 5 | `/api/admin/users/{id}/password` | PUT | 重置密码（`{password}`，6-20 位；成功后该用户所有旧 token 立即失效） |
+| 6 | `/api/admin/users/{id}` | DELETE | 删除用户（连带吊销刷新令牌） |
+
+#### 档案管理 `/api/admin/archives`
+
+| # | 接口 | 方法 | 说明 |
+| --- | --- | --- | --- |
+| 1 | `/api/admin/archives/stats` | GET | 档案统计：总数 / 公开数 / 私密数 / 今日新增 |
+| 2 | `/api/admin/archives?keyword=&visibility=&page=1&size=10` | GET | 跨所有用户的档案列表（JOIN 出所属用户名，支持关键词 + 可见性过滤） |
+| 3 | `/api/admin/archives/{id}` | GET | 档案详情 |
+| 4 | `/api/admin/archives/{id}` | PUT | 编辑档案（body 同 `ArchiveDTO`） |
+| 5 | `/api/admin/archives/{id}` | DELETE | 删除档案 |
+
+---
+
+## 4. 管理后台页面
+
+配套静态管理后台页面：**`src/main/resources/static/admin/index.html`**（登录页 + 统计卡片 + 用户管理 + 档案管理 标签页）。
+
+Spring Boot 把 `static/` 下的文件直接映射到根路径，所以访问地址是：
+
+```
+http://localhost:8081/admin/index.html
+```
+
+**前置条件**
+
+- 后端已在 dev 环境（端口 8081）启动；
+- 用**管理员账号**登录（需要 `lc_user.role='admin'` 且 `permission=0`）。
+  预置的演示账号 `lc_demo` 是普通用户，进不了后台。
+
+**如果库里还没有管理员**，直接改库即可（改完已登录用户下次请求即生效，无需重登）：
+
+```sql
+UPDATE lc_user SET role = 'admin', permission = 0 WHERE username = 'lc_demo';
+```
+
+页面交互（同源，无需额外跨域配置）：登录 → 看统计概览 → 在「用户管理」标签页启用/禁用/调角色/重置密码/删除 → 在「档案管理」标签页查看/编辑/删除任意用户的档案。
+
+---
+
+## 5. 代码结构
 
 ```
 src/main/java/com/fenglin/springboottest/
 ├── common/       R（统一返回）、BusinessException、GlobalExceptionHandler、
-│                 TokenBlacklist（登出黑名单）、SmsCodeCleaner（过期验证码清理）
+│                 TokenBlacklist（登出黑名单）、SmsCodeCleaner（过期验证码清理）、
+│                 RefreshTokenCleaner（过期刷新令牌清理）
 ├── config/       MybatisPlusConfig（Mapper 扫描 + 分页）、PasswordEncoderConfig（BCrypt）
-├── controller/   AuthController      /api/auth/*
-├── entity/       User(lc_user)、SmsCode(lc_sms_code)
+├── controller/
+│   ├── AuthController        /api/auth/*           账号鉴权
+│   ├── ArchiveController     /api/archives/*       时光档案（用户侧）
+│   ├── AdminUserController   /api/admin/*          后台·用户管理
+│   ├── AdminArchiveController /api/admin/archives/* 后台·档案管理
+│   └── DemoController        演示接口（含权限分级示例）
+├── entity/       User(lc_user)、SmsCode(lc_sms_code)、Archive(lc_archive)、RefreshToken(lc_refresh_token)
 ├── enums/        UserRole（user / admin，角色判断的唯一来源）
-├── mapper/       UserMapper、SmsCodeMapper
-├── dto/          RegisterDTO、LoginDTO、ResetPasswordDTO、UpdateProfileDTO、ChangePasswordDTO（参数校验注解）
-├── service/      AuthService + impl/AuthServiceImpl（验证码、注册、登录、重置密码业务逻辑）
-└── util/         JwtUtil（签发 / 解析 JWT）
+├── mapper/       UserMapper、SmsCodeMapper、ArchiveMapper、RefreshTokenMapper
+├── dto/          RegisterDTO、LoginDTO、ResetPasswordDTO、UpdateProfileDTO、
+│                 ChangePasswordDTO、ArchiveDTO（参数校验注解）
+├── service/      AuthService + impl/AuthServiceImpl（验证码、注册、登录、重置密码业务逻辑）、
+│                 CaptchaService + impl/CaptchaServiceImpl（图形验证码）
+├── util/         JwtUtil（签发/解析 JWT）、OpaqueTokenUtil
+└── UserController.java  早期练手用的 MVC 页面跳转（/user/*，与核心业务无关，可忽略）
+src/main/resources/
+├── static/
+│   ├── index.html            首页/演示页
+│   ├── archives/index.html   时光档案前端页
+│   └── admin/index.html      管理后台前端页（登录 + 统计 + 用户管理 + 档案管理）
+├── templates/user/login.html 早期练手模板
+└── application*.properties   dev(8081) / prob / test 多环境配置
 ```
 
-## 5. 本地启动
+---
+
+## 6. 本地启动
 
 ```bash
 # 编译
@@ -309,18 +412,22 @@ mvn package -DskipTests
 java -jar target/springBootTest-0.0.1-SNAPSHOT.jar
 ```
 
-数据源与相关开关在 `src/main/resources/application.properties`：
+数据源与相关开关在 `src/main/resources/application.properties`（dev 端口在 `application-dev.properties`）：
 
 ```properties
 spring.datasource.url=jdbc:mysql://127.0.0.1:3306/link_click_auth?...
 spring.datasource.username=root
 spring.datasource.password=123456
 auth.sms.debug=true          # 演示模式：把验证码返回给前端
+jwt.secret=LinkClickAuthLocalDevSecretKey_时光代理人_2026
+jwt.expire-seconds=604800
 ```
 
-## 6. 前端联调
+---
 
-前端 `vite.config.js` 已配置代理，`/api` 转发到 `http://localhost:8081`：
+## 7. 前端联调
+
+前端项目位于 **`D:\workSpace\JAVA\link-click-auth-vue`**（Vue 3 + Vite），`vite.config.js` 已配置代理，`/api` 转发到 `http://localhost:8081`：
 
 ```js
 server: { port: 5173, proxy: { '/api': { target: 'http://localhost:8081', changeOrigin: true } } }
@@ -329,7 +436,7 @@ server: { port: 5173, proxy: { '/api': { target: 'http://localhost:8081', change
 启动前端：
 
 ```bash
-cd C:\Users\Administrator\Desktop\JAVA-main\时光代理人\link-click-auth-vue
+cd D:\workSpace\JAVA\link-click-auth-vue
 npm install
 npm run dev
 ```
@@ -348,6 +455,26 @@ npm run dev
 登录成功后卡片底部会显示「已登录：lc_demo」和角色徽章，旁边入口：
 
 - **个人中心**：改昵称、改密码。改密码需要输入当前密码，成功后会自动退出登录态，需要重新登录
-- **时光档案**（仅管理员可见）：点开后可以对比「公开档案」和「全部档案」两个接口，
-  用普通账号点后者会看到 403 权限不足
+- **时光档案**（普通用户可见）：新建 / 编辑 / 删除自己的档案，或浏览公开档案墙
+- **管理后台**（仅管理员可见）：登录后访问 `http://localhost:8081/admin/index.html`，做用户与档案的全局管理
 - **退出**：先调登出接口让 token 失效，再清本地凭证
+
+---
+
+## 8. 已知问题
+
+### 8.1 密码是明文存储 / 明文比对（高危）
+
+`AuthServiceImpl` 的注册、登录、改密、重置密码**都没有调用 `BCryptPasswordEncoder`**，而是直接：
+
+- `register`：`user.setPassword(password)`（明文入库）
+- `login`：`password.equals(user.getPassword())`（明文比对）
+- `changePassword` / `resetPassword`：同样明文
+
+项目里虽然定义了 `PasswordEncoderConfig` 的 `BCryptPasswordEncoder` Bean，但鉴权流程从未注入使用。**生产环境必须改为 BCrypt（或更强）哈希**，否则数据库一旦泄露，所有账号密码直接曝光。
+
+> 当前开发库里已手动把一个管理员账号（`admin`）的密码以明文 `admin123` 写入，仅用于本地联调；正式使用前请改回哈希存储。
+
+### 8.2 演示账号 `lc_demo` 在本库不存在
+
+README 第 7 节提到的预置演示账号 `lc_demo / 13611112222 / timepass` 是基于早期脚本的示例，**当前 `link_click_auth` 库里并没有这条记录**（现有用户是 `admin` 与 `xx`，且手机号均为 NULL）。需要演示时自行注册，或按 8.1 的方式手动插入一条哈希密码的账号。

@@ -37,49 +37,50 @@ export const DEFAULT_ICON = 'M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a
 export const coverIcon = (tag) => TAG_ICONS[tag] || DEFAULT_ICON
 
 // ===== 封面照片映射 =====
-// 两套来源，按优先级合成最终映射：
-//   1) SEMANTIC_COVER —— 按「标题/标签」语义匹配的图（新生成、与档案文字一一对应）；
-//   2) ARCHIVE_COVER —— 按 id 对应的通用主题图（public/img/archives/{id}.png）。
-// 语义匹配优先，命中不到的档案再回退到按 id 的通用封面。
+// 设计目标：每张档案（演示 or 用户新建）都拿到「互不相同」的封面，
+// 避免社区墙 / 相册 / 首页胶片墙大量撞图、显得千篇一律。
+//
+// 之前的问题：用「标签/通用词」做子串匹配（如把 tag=私语 也当关键词），
+// 导致所有「私语」档案都命中同一张 g1、所有「约定」命中 g5、所有「告白」命中 g2……
+// 现在改为：① 标杆档案用「精确标题」匹配（绝不误伤）；② 其余按 id 取图（id 唯一 ⇒ 封面唯一）。
 
-// 语义封面：标题关键词 → 图片。让每张照片真正对应到一段时光记录。
-// 注意：关键词必须精确、互斥，避免两条档案命中同一张图（造成胶片墙重复）。
-// 匹配顺序即优先级，靠前的规则先命中。
-export const SEMANTIC_COVER = [
-  { kw: ['雨夜便利', '便利店'], src: '/img/gallery/g4.png' },   // 雨夜便利店
-  { kw: ['未寄', '的信', '抽屉'], src: '/img/gallery/g3.png' }, // 未寄出的信
-  { kw: ['天台', '告白'], src: '/img/gallery/g2.png' },         // 天台上的告白
-  { kw: ['跨年', '约定', '烟火'], src: '/img/gallery/g5.png' }, // 跨年烟火下的约定
-  { kw: ['猫'], src: '/img/gallery/g6.png' },                   // 旧巷口的猫
-  { kw: ['雨中', '私语', '末班', '电车'], src: '/img/gallery/g1.png' } // 雨中私语
+// 全部可用封面图（AI 生成的电影感主题图，每张互不相同，共 24 张）
+export const COVER_POOL = [
+  '/img/gallery/g1.png', '/img/gallery/g2.png', '/img/gallery/g3.png',
+  '/img/gallery/g4.png', '/img/gallery/g5.png', '/img/gallery/g6.png',
+  '/img/gallery/g7.png', '/img/gallery/g8.png', '/img/gallery/g9.png',
+  '/img/gallery/g10.png', '/img/gallery/g11.png', '/img/gallery/g12.png',
+  '/img/gallery/g13.png', '/img/gallery/g14.png',
+  '/img/archives/1.png', '/img/archives/2.png', '/img/archives/3.png',
+  '/img/archives/4.png', '/img/archives/5.png', '/img/archives/6.png',
+  '/img/archives/7.png', '/img/archives/8.png', '/img/archives/9.png',
+  '/img/archives/10.png'
 ]
 
-// 根据档案标题+标签匹配语义封面（无命中返回空串）
-export function semanticCoverUrl(m) {
-  const text = `${(m && m.title) || ''} ${(m && m.tag) || ''}`
-  for (const rule of SEMANTIC_COVER) {
-    if (rule.kw.some((k) => text.includes(k))) return rule.src
-  }
-  return ''
+// 标杆档案：精确标题 → 专属封面（与档案内容一一对应，绝不撞图）
+export const CURATED_COVER = {
+  '雨中私语': '/img/gallery/g1.png',
+  '未寄出的信': '/img/gallery/g3.png',
+  '天台上的告白': '/img/gallery/g2.png',
+  '时光闭锁': '/img/gallery/g5.png',
+  '平安夜的路灯': '/img/gallery/g6.png',
+  '山顶看日出': '/img/gallery/g4.png',
+  '旧书店的邂逅': '/img/archives/7.png',
+  '情人节乌龙': '/img/gallery/g8.png',
+  '毕业那年的蝉鸣': '/img/gallery/g9.png',
+  '国庆骑行': '/img/archives/10.png'
 }
 
-// 通用封面：按 id 对应 public/img/archives/{id}.png（AI 生成的电影感主题图）
-export const ARCHIVE_COVER = {
-  1: '/img/archives/1.png',
-  2: '/img/archives/2.png',
-  3: '/img/archives/3.png',
-  4: '/img/archives/4.png',
-  5: '/img/archives/5.png',
-  6: '/img/archives/6.png',
-  7: '/img/archives/7.png',
-  8: '/img/archives/8.png',
-  9: '/img/archives/9.png',
-  10: '/img/archives/10.png'
-}
-
-// 档案最终的封面图地址：语义封面 > 按 id 通用封面 > 空
+// 档案封面：用户上传的真实照片优先；否则回退到精确语义封面 / 按 id 取图（保证互不相同）
 export function coverUrl(m) {
-  return semanticCoverUrl(m) || ARCHIVE_COVER[m && m.id] || ''
+  if (!m) return ''
+  // 用户上传的封面（相对或绝对 URL），优先级最高
+  if (m.cover && (m.cover.startsWith('/') || m.cover.startsWith('http'))) return m.cover
+  const t = m.title
+  if (t && CURATED_COVER[t]) return CURATED_COVER[t]
+  const id = m.id
+  if (id != null) return COVER_POOL[(Number(id) - 1) % COVER_POOL.length]
+  return ''
 }
 
 // 是否有真实封面图

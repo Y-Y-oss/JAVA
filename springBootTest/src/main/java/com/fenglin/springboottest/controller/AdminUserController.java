@@ -10,6 +10,7 @@ import com.fenglin.springboottest.mapper.UserMapper;
 import com.fenglin.springboottest.service.AuthService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -61,6 +62,10 @@ public class AdminUserController {
 
     @Autowired
     private RefreshTokenMapper refreshTokenMapper;
+
+    /** BCrypt 密码编码器（重置密码时哈希存储，与 AuthServiceImpl 保持一致） */
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     /** 从 Authorization 头取出不含 Bearer 前缀的 token */
     private String resolveToken(String authorization) {
@@ -212,7 +217,7 @@ public class AdminUserController {
 
         User update = new User();
         update.setId(id);
-        update.setPassword(password);
+        update.setPassword(passwordEncoder.encode(password));
         // 密码版本号 +1：该用户已签发的所有旧 token 立即失效
         update.setPwdVersion((user.getPwdVersion() == null ? 1 : user.getPwdVersion()) + 1);
         userMapper.updateById(update);

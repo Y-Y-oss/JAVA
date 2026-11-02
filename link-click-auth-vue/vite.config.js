@@ -19,6 +19,11 @@ export default defineConfig({
       '/admin': {
         target: API_TARGET,
         changeOrigin: true
+      },
+      // 用户上传的时光照片（/uploads/**）由后端静态资源映射提供，开发环境一并代理
+      '/uploads': {
+        target: API_TARGET,
+        changeOrigin: true
       }
     }
   }

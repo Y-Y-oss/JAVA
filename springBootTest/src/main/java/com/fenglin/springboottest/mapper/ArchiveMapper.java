@@ -33,7 +33,7 @@ public interface ArchiveMapper extends BaseMapper<Archive> {
      * 搜索公开档案墙（visibility=1）：按 标题/内容/标签 模糊匹配，带作者用户名，
      * 按更新时间倒序。q 为空时退化为「列出全部公开档案」。
      */
-    @Select("SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, " +
+    @Select(            "SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, a.cover, " +
             "a.create_time, a.update_time " +
             "FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
             "WHERE a.visibility = 1 " +
@@ -56,8 +56,8 @@ public interface ArchiveMapper extends BaseMapper<Archive> {
      * 后台档案列表：跨所有用户，JOIN 出所属用户名，支持关键词(标题/内容/标签)与可见性过滤。
      */
     @Select("<script>" +
-            "SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, " +
-            "a.visibility, a.create_time, a.update_time " +
+            "SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, a.cover, " +
+            "a.cover, a.visibility, a.create_time, a.update_time " +
             "FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
             "<where>" +
             "<if test='keyword != null and keyword != \"\"'>" +

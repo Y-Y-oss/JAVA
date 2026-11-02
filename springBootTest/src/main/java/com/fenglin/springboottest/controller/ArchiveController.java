@@ -25,12 +25,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 时光档案接口（「时光代理人」核心业务，页面见 static/archives/index.html）
@@ -60,6 +67,10 @@ public class ArchiveController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    /** 上传目录（相对后端运行目录，如 springBootTest/uploads），由 application.properties 的 file.upload-dir 指定 */
+    @org.springframework.beans.factory.annotation.Value("${file.upload-dir:./uploads}")
+    private String uploadDir;
 
     /** 从 Authorization 头取出不含 Bearer 前缀的 token */
     private String resolveToken(String authorization) {
@@ -254,6 +265,57 @@ public class ArchiveController {
         return R.ok("搜索完成", data);
     }
 
+    // ============================ 9. 上传封面照片 ============================
+
+    /**
+     * 上传时光档案的封面照片（需登录）。
+     * 校验图片类型与大小，按 UUID 重命名后保存到上传目录的 archives/ 子目录，
+     * 返回可访问的相对 URL（如 /uploads/archives/xxxx.png），供新建/编辑档案时回填到 cover 字段。
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public R<Map<String, Object>> upload(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file) {
+        requireUserId(authorization);
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要上传的照片");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BusinessException("仅支持上传图片文件（png/jpg/webp/gif）");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BusinessException("图片不能超过 5MB");
+        }
+
+        // 仅允许安全的扩展名，避免任意后缀落盘
+        String original = file.getOriginalFilename();
+        String ext = "png";
+        if (original != null && original.contains(".")) {
+            String e = original.substring(original.lastIndexOf('.') + 1).toLowerCase();
+            if (Arrays.asList("png", "jpg", "jpeg", "webp", "gif").contains(e)) {
+                ext = e;
+            }
+        }
+        String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+
+        File dir = new File(uploadDir, "archives");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new BusinessException("上传目录创建失败，请联系管理员");
+        }
+        File dest = new File(dir, filename);
+        try {
+            file.transferTo(dest);
+        } catch (IOException e) {
+            throw new BusinessException("文件保存失败：" + e.getMessage());
+        }
+
+        String url = "/uploads/archives/" + filename;
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("url", url);
+        return R.ok("上传成功", data);
+    }
+
     // ============================ 私有工具 ============================
 
     private Archive requireArchive(Long id) {
@@ -270,6 +332,7 @@ public class ArchiveController {
         archive.setContent(StringUtils.hasText(dto.getContent()) ? dto.getContent().trim() : null);
         archive.setArchiveDate(parseDate(dto.getArchiveDate()));
         archive.setTag(StringUtils.hasText(dto.getTag()) ? dto.getTag().trim() : null);
+        archive.setCover(StringUtils.hasText(dto.getCover()) ? dto.getCover().trim() : null);
         archive.setVisibility(dto.getVisibility() != null && dto.getVisibility() == 1 ? 1 : 0);
     }
 

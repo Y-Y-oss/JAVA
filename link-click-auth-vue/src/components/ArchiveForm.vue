@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { createArchive, updateArchive } from '../api/home'
+import { createArchive, updateArchive, uploadArchiveImage } from '../api/home'
 import { KNOWN_TAGS } from '../utils/archiveStyle'
 
 const props = defineProps({
@@ -17,6 +17,11 @@ const tag = ref('私语')
 const visibility = ref(0)
 const submitting = ref(false)
 const formError = ref('')
+
+// 封面照片上传相关
+const coverUrl = ref('')
+const uploading = ref(false)
+const fileInput = ref(null)
 
 // 打开时根据 initial 填充表单（编辑）或重置（新建）
 watch(() => props.show, (v) => {
@@ -36,7 +41,40 @@ watch(() => props.show, (v) => {
     tag.value = '私语'
     visibility.value = 0
   }
+  coverUrl.value = props.initial ? (props.initial.cover || '') : ''
 })
+
+function onPickFile() {
+  if (fileInput.value) fileInput.value.click()
+}
+
+async function onFileChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    formError.value = '请选择图片文件（png/jpg/webp/gif）'
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    formError.value = '图片不能超过 5MB'
+    return
+  }
+  uploading.value = true
+  formError.value = ''
+  try {
+    const res = await uploadArchiveImage(file)
+    coverUrl.value = (res.data && res.data.url) || ''
+  } catch (err) {
+    formError.value = err.message || '上传失败'
+  } finally {
+    uploading.value = false
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
+
+function removeCover() {
+  coverUrl.value = ''
+}
 
 async function onSubmit() {
   if (!title.value.trim()) {
@@ -50,7 +88,8 @@ async function onSubmit() {
     content: content.value.trim() || null,
     archiveDate: archiveDate.value || null,
     tag: tag.value || null,
-    visibility: visibility.value === 1 ? 1 : 0
+    visibility: visibility.value === 1 ? 1 : 0,
+    cover: coverUrl.value || null
   }
   try {
     const res = isEdit.value
@@ -107,6 +146,27 @@ async function onSubmit() {
             <div class="seg">
               <button type="button" class="seg-btn" :class="{ on: visibility === 0 }" @click="visibility = 0">仅自己</button>
               <button type="button" class="seg-btn" :class="{ on: visibility === 1 }" @click="visibility = 1">公开到档案墙</button>
+            </div>
+          </div>
+
+          <div class="fld">
+            <span class="fld-label">封面照片</span>
+            <div class="cover-upload">
+              <div v-if="coverUrl" class="cover-preview">
+                <img :src="coverUrl" alt="封面预览" />
+                <div class="cover-actions">
+                  <button type="button" class="ca" @click="onPickFile">重新上传</button>
+                  <button type="button" class="ca danger" @click="removeCover">移除</button>
+                </div>
+              </div>
+              <button v-else type="button" class="cover-pick" :disabled="uploading" @click="onPickFile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                </svg>
+                <span>{{ uploading ? '上传中…' : '上传一张照片' }}</span>
+              </button>
+              <input ref="fileInput" type="file" accept="image/*" class="hidden-file" @change="onFileChange" />
+              <p class="cover-hint">支持 png/jpg/webp/gif，≤5MB。留空则使用系统默认封面。</p>
             </div>
           </div>
 
@@ -189,6 +249,20 @@ async function onSubmit() {
 }
 .form-submit:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-1px); }
 .form-submit:disabled { opacity: .7; cursor: not-allowed; }
+
+.cover-upload { display: flex; flex-direction: column; gap: 8px; }
+.cover-preview { position: relative; width: 100%; max-width: 260px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .16); }
+.cover-preview img { display: block; width: 100%; height: 150px; object-fit: cover; }
+.cover-actions { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
+.ca { border: 1px solid rgba(255, 255, 255, .2); cursor: pointer; font-family: inherit; font-size: 12px; padding: 5px 10px; border-radius: 8px; color: #eef2ff; background: rgba(10, 14, 39, .6); backdrop-filter: blur(4px); transition: .2s; }
+.ca:hover { color: #fff; border-color: var(--cyan); }
+.ca.danger:hover { border-color: var(--magenta); color: #ff8aa8; }
+.cover-pick { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: 260px; padding: 16px; cursor: pointer; font-family: inherit; font-size: 13.5px; color: #cdd6f4; background: rgba(255, 255, 255, .05); border: 1px dashed rgba(255, 255, 255, .22); border-radius: 12px; transition: .22s; }
+.cover-pick:hover:not(:disabled) { color: #fff; border-color: var(--cyan); background: rgba(45, 226, 230, .08); }
+.cover-pick:disabled { opacity: .6; cursor: not-allowed; }
+.cover-pick svg { width: 20px; height: 20px; }
+.hidden-file { display: none; }
+.cover-hint { font-size: 11.5px; color: #8b97bd; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 .pop-enter-active, .pop-leave-active { transition: opacity .26s ease; }

@@ -5,7 +5,7 @@
  * 真实后端用 /api/archives 提供「时光档案」数据。这里统一改为对接真实接口。
  * 登录态由 request 层自动携带 Authorization 头，无需手动传 token。
  */
-import { get, post, put, del } from './request'
+import { get, post, put, del, uploadFile } from './request'
 
 /**
  * 我的档案列表（需登录）  GET /api/archives?page=1&size=10
@@ -76,4 +76,13 @@ export function updateArchive(id, dto) {
  */
 export function deleteArchive(id) {
   return del('/archives/' + id)
+}
+
+/**
+ * 上传时光档案封面照片（需登录）  POST /api/archives/upload  (multipart/form-data)
+ * @param {File} file 图片文件（png/jpg/webp/gif，≤5MB）
+ * @returns { data: { url } }  url 为可访问的相对路径，如 /uploads/archives/xxxx.png
+ */
+export function uploadArchiveImage(file) {
+  return uploadFile('/archives/upload', file)
 }

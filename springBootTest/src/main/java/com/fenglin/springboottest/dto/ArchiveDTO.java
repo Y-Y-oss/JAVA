@@ -26,6 +26,9 @@ public class ArchiveDTO {
     @Size(max = 30, message = "标签最多 30 字")
     private String tag;
 
+    /** 封面照片地址（选填，由 /api/archives/upload 上传后回填的相对路径） */
+    private String cover;
+
     /** 可见性：0-仅自己，1-公开到档案墙；不传默认 0 */
     private Integer visibility;
 }

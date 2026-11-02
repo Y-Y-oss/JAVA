@@ -23,6 +23,7 @@ import com.fenglin.springboottest.util.OpaqueTokenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -74,6 +75,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private RefreshTokenMapper refreshTokenMapper;
+
+    /** BCrypt 密码编码器（与 PasswordEncoderConfig 中的 Bean 对应，用于密码哈希与比对） */
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     /** 刷新令牌有效期（秒），默认 15 天 */
     @Value("${jwt.refresh-expire-seconds:1296000}")
@@ -165,11 +170,11 @@ public class AuthServiceImpl implements AuthService {
                     Collections.singletonMap("phone", "该手机号已注册，请直接登录"));
         }
 
-        // 写入用户（按需求：密码以明文存储，不加密；新注册用户为默认权限 permission=1）
+        // 写入用户（密码以 BCrypt 哈希存储；新注册用户为默认权限 permission=1）
         User user = new User();
         user.setUsername(username);
         user.setPhone(phone);
-        user.setPassword(password);
+        user.setPassword(passwordEncoder.encode(password));
         user.setNickname(username);
         user.setRole(UserRole.USER.getCode());
         user.setPermission(1);
@@ -205,7 +210,7 @@ public class AuthServiceImpl implements AuthService {
         if (exist == null) {
             throw new BusinessException("该手机号尚未注册，请前往注册");
         }
-        if (password.equals(exist.getPassword())) {
+        if (passwordEncoder.matches(password, exist.getPassword())) {
             throw new BusinessException("新密码不能与当前密码相同，请换一个");
         }
 
@@ -217,7 +222,7 @@ public class AuthServiceImpl implements AuthService {
         int nextVersion = (exist.getPwdVersion() == null ? 1 : exist.getPwdVersion()) + 1;
         User update = new User();
         update.setId(exist.getId());
-        update.setPassword(password);
+        update.setPassword(passwordEncoder.encode(password));
         update.setPwdVersion(nextVersion);
         userMapper.updateById(update);
         revokeAllRefreshTokens(exist.getId(), "password-reset");
@@ -248,7 +253,7 @@ public class AuthServiceImpl implements AuthService {
             // 不区分“账号不存在”和“密码错误”，避免账号枚举
             throw new BusinessException("账号或密码错误");
         }
-        if (!password.equals(user.getPassword())) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BusinessException("账号或密码错误");
         }
 
@@ -458,18 +463,18 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("两次输入的密码不一致",
                     Collections.singletonMap("confirmPassword", "两次密码不一致"));
         }
-        // 当前密码错误时不泄露账号是否存在，统一提示（明文比较）
-        if (!dto.getOldPassword().equals(user.getPassword())) {
+        // 当前密码错误时不泄露账号是否存在，统一提示（BCrypt 比对）
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
             throw new BusinessException("当前密码错误");
         }
-        if (dto.getNewPassword().equals(user.getPassword())) {
+        if (passwordEncoder.matches(dto.getNewPassword(), user.getPassword())) {
             throw new BusinessException("新密码不能与当前密码相同，请换一个");
         }
 
         int nextVersion = (user.getPwdVersion() == null ? 1 : user.getPwdVersion()) + 1;
         User update = new User();
         update.setId(user.getId());
-        update.setPassword(dto.getNewPassword());
+        update.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         update.setPwdVersion(nextVersion);
         userMapper.updateById(update);
 

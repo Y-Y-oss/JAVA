@@ -93,4 +93,55 @@ export const post = (url, body) => request('POST', url, {}, body || {})
 export const put = (url, body) => request('PUT', url, {}, body || {})
 export const del = (url) => request('DELETE', url)
 
+/**
+ * 上传文件（multipart/form-data），当前用于时光档案封面照片。
+ * 与 request() 共用同一套错误解析与 Authorization 头注入逻辑。
+ * @param {string} url    相对路径，如 '/archives/upload'
+ * @param {File}   file   要上传的文件对象
+ */
+export async function uploadFile(url, file) {
+  const finalUrl = BASE_URL + url
+  const token = tokenProvider ? tokenProvider() : ''
+  const form = new FormData()
+  form.append('file', file)
+
+  const options = { method: 'POST', body: form }
+  if (token) options.headers = { Authorization: 'Bearer ' + token }
+
+  let response
+  try {
+    response = await fetch(finalUrl, options)
+  } catch (err) {
+    throw new ApiError('无法连接后端服务，请确认后端已启动（默认 http://localhost:8081）')
+  }
+
+  let text = ''
+  try {
+    text = await response.text()
+  } catch (err) {
+    text = ''
+  }
+
+  let json = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch (err) {
+    json = null
+  }
+
+  if (!response.ok && (!json || json.code === undefined)) {
+    throw new ApiError(`请求失败（HTTP ${response.status}）`)
+  }
+  if (!json || json.code !== 200) {
+    throw new ApiError(json && json.message ? json.message : '上传失败', {
+      code: json ? json.code : undefined,
+      data: json ? json.data : null,
+      errors: json ? json.errors : null
+    })
+  }
+  return json
+}
+
+export default { get, post, put, del, uploadFile, request }
+
 export default { get, post, put, del, request }

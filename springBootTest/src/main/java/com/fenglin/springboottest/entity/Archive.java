@@ -40,6 +40,9 @@ public class Archive implements Serializable {
     /** 标签：如 私语/信件/告白/约定 */
     private String tag;
 
+    /** 封面照片地址（用户上传后返回的相对路径，如 /uploads/archives/xxx.png；为空则用系统默认封面） */
+    private String cover;
+
     /** 可见性：0-仅自己，1-公开到档案墙 */
     private Integer visibility;
 

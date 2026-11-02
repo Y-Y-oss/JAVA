@@ -205,6 +205,7 @@ SET @sql = IF(
         `archive_date` DATE            DEFAULT NULL            COMMENT ''时光节点：这段回忆发生的日期'',
         `tag`          VARCHAR(30)     DEFAULT NULL            COMMENT ''标签：如 私语/信件/告白/约定'',
         `visibility`   TINYINT         NOT NULL DEFAULT 0      COMMENT ''可见性：0-仅自己，1-公开到档案墙'',
+        `cover`        VARCHAR(512)    DEFAULT NULL            COMMENT ''封面照片地址（用户上传后返回的相对路径，如 /uploads/archives/xxx.png）'',
         `create_time`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT ''创建时间'',
         `update_time`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT ''更新时间'',
         PRIMARY KEY (`id`),
