@@ -87,3 +87,26 @@ curl http://localhost:5173/api/auth/captcha   # 同样 code:200
 - `sql/link_click_auth.sql` 是安全的:用户表 `lc_user` 用 `CREATE TABLE IF NOT EXISTS` + information_schema 探测,**不会 DROP 用户表**;只有 `lc_sms_code` / `lc_refresh_token` 会重建。增量 ALTER 只补缺失列。
 - 没有 `ddl-auto` / `schema.sql` / `data.sql`,MyBatis-Plus 不自动重建表,所以**重新导入 SQL 不会清空已有账号**。当前库里 4 个账号(含 `admin`)均持久保留。
 - 真正要防的"账号丢失"来自两点:① 机器重置只清 `node_modules`/`target`,不动 MySQL 数据文件,账号不会丢;② 改 `sql` 脚本千万别给用户表加 `DROP`。
+
+## 启动脚本结构(2026-11-05 重构)
+
+**"双击 启动项目.bat 闪退/没反应"的根因**:旧版脚本用
+`start "T" /D "dir" cmd /k "call "%MVN_CMD%" -q spring-boot:run & ..."`
+——**引号套引号**,cmd 收到的命令行被打碎,后端窗口开了但命令是坏的 → 后端永远起不来 → 主脚本卡在「等待后端就绪」静默空转最多 3 分钟,表现就是"打不开 / 闪退"。
+
+现在的结构(刻意避免任何嵌套引号):
+
+| 文件 | 职责 |
+|---|---|
+| `启动项目.bat` | 入口:检查 MySQL / 建库 / 判断端口 / 拉起子脚本 / 等后端就绪(每秒打点) / 自动开浏览器 |
+| `scripts\run-backend.bat` | 后端窗口:`call "%MVN_CMD%" spring-boot:run`,失败会停住显示报错 |
+| `scripts\run-frontend.bat` | 前端窗口:`npm ci`(缺 node_modules 时)+ `npm run dev`,失败会停住 |
+
+要点:
+- 子脚本只用**一层**引号:`start "标题" /D "目录" cmd /k "完整路径\xxx.bat"`。
+- **不要**再往 `cmd /k "..."` 里塞第二对引号(如 `call "..."`),这是旧版崩溃的原因。
+- 三个 `.bat` 必须保存为 **GBK + CRLF + 无 BOM**;存成 UTF-8 会让 cmd 按字节错配引号。
+- 已在运行则跳过,避免无谓重启;强制重启用 `启动项目.bat restart`。
+- 自动跳过暂停用 `启动项目.bat nopause`(自动化场景)。
+- 排错先看同目录 **`启动日志.txt`**,最后一行就是卡住的步骤。
+- 沙箱/CI 里 `cmd.exe` 可能被禁用,此时无法自动化跑 bat,只能验证其依赖命令(`mvnw`、`npm`)本身可用。
