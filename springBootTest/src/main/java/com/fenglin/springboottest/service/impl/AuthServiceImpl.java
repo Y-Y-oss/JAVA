@@ -9,10 +9,12 @@ import com.fenglin.springboottest.dto.LoginDTO;
 import com.fenglin.springboottest.dto.RegisterDTO;
 import com.fenglin.springboottest.dto.ResetPasswordDTO;
 import com.fenglin.springboottest.dto.UpdateProfileDTO;
+import com.fenglin.springboottest.entity.LoginLog;
 import com.fenglin.springboottest.entity.RefreshToken;
 import com.fenglin.springboottest.entity.SmsCode;
 import com.fenglin.springboottest.entity.User;
 import com.fenglin.springboottest.enums.UserRole;
+import com.fenglin.springboottest.mapper.LoginLogMapper;
 import com.fenglin.springboottest.mapper.RefreshTokenMapper;
 import com.fenglin.springboottest.mapper.SmsCodeMapper;
 import com.fenglin.springboottest.mapper.UserMapper;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 认证业务实现：验证码发放与校验、用户注册、双令牌签发与轮换
@@ -79,6 +82,14 @@ public class AuthServiceImpl implements AuthService {
     /** BCrypt 密码编码器（与 PasswordEncoderConfig 中的 Bean 对应，用于密码哈希与比对） */
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
+
+    /** 登录日志数据层（每次登录追加一条历史记录，永不覆盖） */
+    @Autowired
+    private LoginLogMapper loginLogMapper;
+
+    /** 当前请求（用于记录登录来源 IP / User-Agent；非 Web 环境下为 null，不影响主流程） */
+    @Autowired(required = false)
+    private HttpServletRequest request;
 
     /** 刷新令牌有效期（秒），默认 15 天 */
     @Value("${jwt.refresh-expire-seconds:1296000}")
@@ -241,6 +252,7 @@ public class AuthServiceImpl implements AuthService {
         String account = dto.getAccount() == null ? "" : dto.getAccount().trim();
         String password = dto.getPassword();
         if (!StringUtils.hasText(account) || !StringUtils.hasText(password)) {
+            recordLogin(null, account, false, "参数缺失");
             throw new BusinessException("请输入手机号或账号");
         }
 
@@ -250,18 +262,25 @@ public class AuthServiceImpl implements AuthService {
             user = userMapper.selectByPhone(account);
         }
         if (user == null || user.getStatus() != null && user.getStatus() == 0) {
-            // 不区分“账号不存在”和“密码错误”，避免账号枚举
+            // 不区分“账号不存在”和“密码错误”，避免账号枚举；但日志里记真实原因供审计
+            String reason = (user != null && user.getStatus() != null && user.getStatus() == 0)
+                    ? "账号已禁用" : "账号不存在";
+            recordLogin(null, account, false, reason);
             throw new BusinessException("账号或密码错误");
         }
         if (!passwordEncoder.matches(password, user.getPassword())) {
+            recordLogin(user, account, false, "密码错误");
             throw new BusinessException("账号或密码错误");
         }
 
-        // 记录最近一次登录时间
+        // 记录最近一次登录时间（lc_user.last_login_time：仅保留「最近一次」快查字段，不影响历史）
         User loginRecord = new User();
         loginRecord.setId(user.getId());
         loginRecord.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(loginRecord);
+
+        // 追加一条登录历史（永不覆盖，区别于上面的 last_login_time）
+        recordLogin(user, account, true, null);
 
         log.info("登录成功 userId={}, username={}", user.getId(), user.getUsername());
 
@@ -273,6 +292,49 @@ public class AuthServiceImpl implements AuthService {
         data.put("role", user.getRole());
         data.put("permission", user.getPermission());
         return R.ok("登录成功，正在穿越时光…", data);
+    }
+
+    /**
+     * 追加一条登录日志（成功或失败都会记录，且不因任何原因中断登录主流程）。
+     *
+     * @param user       登录成功的用户实体；失败且账号不存在时为 null
+     * @param account    登录时提交的账号名
+     * @param success    是否成功
+     * @param failReason 失败原因（成功时传 null）
+     */
+    private void recordLogin(User user, String account, boolean success, String failReason) {
+        try {
+            LoginLog entry = new LoginLog();
+            entry.setUserId(user != null ? user.getId() : null);
+            entry.setUsername(user != null ? user.getUsername() : (account == null ? "" : account));
+            entry.setLoginType("password");
+            entry.setIp(resolveClientIp());
+            entry.setUserAgent(request != null ? request.getHeader("User-Agent") : null);
+            entry.setSuccess(success ? 1 : 0);
+            entry.setFailReason(failReason);
+            entry.setLoginTime(LocalDateTime.now());
+            entry.setCreateTime(LocalDateTime.now());
+            loginLogMapper.insert(entry);
+        } catch (Exception e) {
+            // 日志写入失败绝不影响登录结果
+            log.warn("写入登录日志失败：{}", e.getMessage());
+        }
+    }
+
+    /** 解析客户端真实 IP（兼容反向代理的 X-Forwarded-For / X-Real-IP） */
+    private String resolveClientIp() {
+        if (request == null) return "";
+        String ip = request.getHeader("X-Forwarded-For");
+        if (!StringUtils.hasText(ip) || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (!StringUtils.hasText(ip) || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip == null ? "" : ip;
     }
 
     /**
@@ -345,8 +407,13 @@ public class AuthServiceImpl implements AuthService {
     public User requireAdmin(String token) {
         // requireLoginUser 已校验：是否已退出登录 / 用户是否存在且未被禁用 / 密码版本是否落后
         User user = requireLoginUser(token);
-        if (user.getPermission() == null || user.getPermission() != 0) {
-            log.warn("非管理员访问后台被拒绝 userId={}, permission={}", user.getId(), user.getPermission());
+        // 管理员判定：permission==0（权限字段）或 role=='admin'（角色字段）任一成立即可。
+        // 这样「只在库里把 role 改成 admin、忘记动 permission」的账号也能正常进后台，
+        // 消除 role / permission 双模型不一致带来的「设了管理员却没权限」陷阱。
+        boolean isAdmin = (user.getPermission() != null && user.getPermission() == 0)
+                || UserRole.ADMIN.getCode().equals(user.getRole());
+        if (!isAdmin) {
+            log.warn("非管理员访问后台被拒绝 userId={}, role={}, permission={}", user.getId(), user.getRole(), user.getPermission());
             throw new BusinessException(403, "权限不足，需要管理员权限");
         }
         return user;

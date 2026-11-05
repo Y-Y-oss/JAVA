@@ -217,3 +217,32 @@ SET @sql = IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- 9. 登录日志表 ----------------------------------------------------------------
+-- 对应实体：com.fenglin.springboottest.entity.LoginLog （@TableName("lc_login_log")）
+-- 用可重复执行的方式建表：已存在则跳过（不 DROP，登录历史是永久审计数据，绝不能清空）。
+-- 与 lc_user.last_login_time（仅保留「最近一次」快查字段）不同，本表每次登录都「追加」一条记录。
+SET @sql = IF(
+    (SELECT COUNT(*) FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = 'link_click_auth' AND TABLE_NAME = 'lc_login_log') = 0,
+    'CREATE TABLE `lc_login_log` (
+        `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT ''主键id'',
+        `user_id`      BIGINT UNSIGNED DEFAULT NULL            COMMENT ''登录用户id（登录失败且账号不存在时为 NULL）'',
+        `username`     VARCHAR(50)     NOT NULL                COMMENT ''登录时使用的账号名（成功/失败都记录，便于审计）'',
+        `login_type`   VARCHAR(20)     NOT NULL DEFAULT ''password'' COMMENT ''登录方式：password-账号密码'',
+        `ip`           VARCHAR(64)     DEFAULT NULL            COMMENT ''登录来源 IP（已处理 X-Forwarded-For）'',
+        `user_agent`   VARCHAR(512)    DEFAULT NULL            COMMENT ''客户端 User-Agent'',
+        `success`      TINYINT         NOT NULL DEFAULT 1      COMMENT ''是否成功：1-成功，0-失败'',
+        `fail_reason`  VARCHAR(64)     DEFAULT NULL            COMMENT ''失败原因：账号不存在/已禁用、密码错误、参数缺失'',
+        `login_time`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT ''登录发生时间'',
+        `create_time`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT ''记录创建时间'',
+        PRIMARY KEY (`id`),
+        KEY `idx_lc_login_log_user` (`user_id`),
+        KEY `idx_lc_login_log_success` (`success`),
+        KEY `idx_lc_login_log_time` (`login_time`)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci
+      COMMENT = ''时光代理人-登录日志表（每次登录追加一条，永不覆盖）''',
+    'SELECT ''lc_login_log 已存在，跳过''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

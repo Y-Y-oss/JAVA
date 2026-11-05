@@ -143,5 +143,3 @@ export async function uploadFile(url, file) {
 }
 
 export default { get, post, put, del, uploadFile, request }
-
-export default { get, post, put, del, request }

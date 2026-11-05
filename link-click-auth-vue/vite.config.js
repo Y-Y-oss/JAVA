@@ -7,6 +7,7 @@ const API_TARGET = 'http://localhost:8081'
 export default defineConfig({
   plugins: [vue()],
   server: {
+    host: true,
     port: 5173,
     open: true,
     proxy: {

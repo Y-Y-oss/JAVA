@@ -89,7 +89,9 @@ public class AdminUserController {
         data.put("total", userMapper.selectCount(null));
         data.put("active", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getStatus, 1)));
         data.put("disabled", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getStatus, 0)));
-        data.put("admins", userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getPermission, 0)));
+        // 管理员统计：permission=0 或 role='admin' 任一成立都算（与 requireAdmin 判定保持一致）
+        data.put("admins", userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getPermission, 0).or().eq(User::getRole, UserRole.ADMIN.getCode())));
         data.put("todayNew", userMapper.selectCount(new LambdaQueryWrapper<User>().ge(User::getCreateTime, todayStart)));
         return R.ok("查询成功", data);
     }
