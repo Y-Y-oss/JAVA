@@ -1,0 +1,13 @@
+﻿===== 1) Mark of the Web 封锁检查 =====
+D:\java\JAVA\启动项目.bat  -> 无封锁标记
+D:\java\JAVA\停止项目.bat  -> 无封锁标记
+
+===== 2) MySQL 客户端定位 =====
+已知路径命中: C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe
+
+===== 3) Maven 定位 =====
+IDEA maven 不存在
+mvnw: D:\java\JAVA\springBootTest\mvnw.cmd
+
+===== 4) MySQL 连通性 =====
+connect: 

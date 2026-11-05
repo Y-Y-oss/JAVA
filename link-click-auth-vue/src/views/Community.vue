@@ -4,6 +4,7 @@ import NavBar from '../components/NavBar.vue'
 import ArchiveCard from '../components/ArchiveCard.vue'
 import ArchiveDetail from '../components/ArchiveDetail.vue'
 import ArchiveForm from '../components/ArchiveForm.vue'
+import GameCenter from '../components/GameCenter.vue'
 import { fetchPublicArchives, getArchive, updateArchive, deleteArchive } from '../api/home'
 import { KNOWN_TAGS, coverStyle } from '../utils/archiveStyle'
 
@@ -245,6 +246,18 @@ onMounted(load)
         </div>
       </section>
 
+      <!-- 社区小游戏：贪吃蛇 / 五子棋 -->
+      <section class="games">
+        <div class="games-head">
+          <span class="games-badge">小游戏</span>
+          <div class="games-hd-text">
+            <h2 class="games-title">社区小游戏</h2>
+            <p class="games-sub">逛累了？来一局放松一下，最高分会自动保存在本机</p>
+          </div>
+        </div>
+        <GameCenter />
+      </section>
+
       <!-- 工具栏：搜索 + 标签筛选 + 排序 -->
       <section class="toolbar">
         <form class="searchbar" @submit.prevent>
@@ -383,6 +396,15 @@ onMounted(load)
 .bili-info { padding: 12px 13px 14px; }
 .bili-name { font-size: 14.5px; font-weight: 600; color: #eef2ff; line-height: 1.35; }
 .bili-desc { font-size: 12px; color: #9fb0d8; margin-top: 5px; line-height: 1.5; }
+
+/* ===== 社区小游戏 ===== */
+.games { max-width: 980px; margin: 0 auto 34px; }
+.games-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.games-badge { flex-shrink: 0; font-size: 13px; font-weight: 700; letter-spacing: .5px; color: #04121f;
+  background: linear-gradient(135deg, var(--cyan), var(--magenta)); padding: 7px 12px; border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(45, 226, 230, .38); }
+.games-title { font-size: 20px; font-weight: 600; letter-spacing: 1px; color: #eef2ff; }
+.games-sub { font-size: 13px; color: #9fb0d8; margin-top: 3px; }
 
 /* ===== 工具栏 ===== */
 .toolbar { max-width: 980px; margin: 0 auto 24px; display: flex; flex-direction: column; gap: 14px; }

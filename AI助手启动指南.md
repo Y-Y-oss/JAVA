@@ -21,11 +21,11 @@
 ## 手动启动(脚本失效时的降级方案,按顺序)
 
 ```bash
-# 1. MySQL(服务名 MySQL80;客户端在 C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe)
-net start MySQL80
+# 1. MySQL(服务名 MySQL84;客户端在 C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe)
+net start MySQL84
 
 # 2. 仅当库不存在时建库(脚本幂等,但会重建 lc_sms_code / lc_refresh_token,别每次跑)
-"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p123456 \
+"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -uroot -p123456 \
   --default-character-set=utf8mb4 < springBootTest/sql/link_click_auth.sql
 
 # 3. 后端(Maven 不在 PATH;二选一;关键:必须去掉 SERVER__PORT!)
@@ -41,6 +41,11 @@ cd link-click-auth-vue && npm ci --no-audit --no-fund && npm run dev
 2. **「系统繁忙」= 数据库没连上**(多半是库不存在),不是验证码问题;「账号或密码错误」才是 DB 正常的标志。
 3. Maven 不在 PATH。~~IDEA 自带 maven3 路径已失效(2026-10-29 确认 `D:\IntelliJ IDEA 2024.3.2.2` 下无 Maven)~~ **统一用项目内 `./mvnw.cmd`**,wrapper 缓存在 `~/.m2/wrapper/dists/apache-maven-3.9.9*`,完好可用。Java 17 在 PATH。
 4. 图形验证码存内存不落库,**后端一重启全部验证码失效,属正常现象**,不是 bug。
+
+5. **机器重置会清空前端 `node_modules`**（同 `target`）→ 表现为"整站起不来",但后端/MySQL 往往还在跑。
+   一键脚本 `启动项目.bat` 已自动处理:检测到 `link-click-auth-vue\node_modules` 缺失时会先 `npm ci`(约 1-2 分钟,**此期间前端窗口看似卡住属正常**),再起 Vite。
+   手动启动时务必先 `cd link-click-auth-vue && npm ci`(或 `npm install`)再 `npm run dev`,否则 5173 起不来。
+   验证前端真起来了:`curl http://localhost:5173/api/auth/captcha` 期望 `code:200`(走 /api→8081 代理)。
 
 ## 已修过的问题(别改回去)
 
@@ -69,3 +74,16 @@ curl http://localhost:5173/api/auth/captcha   # 同样 code:200
 - 验证码:后端 `CaptchaServiceImpl` AWT 画图 + 内存 Map(120 秒、一次性消费),答案只写 DEBUG 日志不下发;前端 `GraphicCaptcha.vue` 挂在 `RegisterForm.vue` 的 `.captcha-slot`。
 - 登录:双令牌,accessToken(JWT)+ refreshToken(轮换,SHA-256 摘要落 `lc_refresh_token`)。
 - 前端无 axios,`src/api/request.js` 是 fetch 封装,BASE_URL=/api。
+
+## 后台管理系统(Admin)
+
+- 入口:`http://localhost:8081/admin/index.html`(后端 Spring Boot 直接托管的静态页面,**不是** `link-click-web` 那个空壳 index.html)。前端 `/admin` 已代理到 8081,所以社区页导航的"后台管理"也能直达。
+- 可见性 / 可登录性统一由 `lc_user.permission` 决定:`permission=0` 或 `role='admin'` 才放行(`AuthServiceImpl.requireAdmin` 与前端 `NavBar` 都按此判断)。
+- 2026-11-05 修过一个致命漂移:`lc_user` 表缺 `permission` 列 → 所有 `/api/admin/**` 报 `Unknown column 'permission'`、导航后台入口也看不见。已执行
+  `ALTER TABLE lc_user ADD COLUMN permission TINYINT NOT NULL DEFAULT 1 ...` 并把 `admin` 账号置为 `permission=0`。**以后若新建管理员,只要确保这两点之一即可。**
+
+## 账号持久化(安全结论)
+
+- `sql/link_click_auth.sql` 是安全的:用户表 `lc_user` 用 `CREATE TABLE IF NOT EXISTS` + information_schema 探测,**不会 DROP 用户表**;只有 `lc_sms_code` / `lc_refresh_token` 会重建。增量 ALTER 只补缺失列。
+- 没有 `ddl-auto` / `schema.sql` / `data.sql`,MyBatis-Plus 不自动重建表,所以**重新导入 SQL 不会清空已有账号**。当前库里 4 个账号(含 `admin`)均持久保留。
+- 真正要防的"账号丢失"来自两点:① 机器重置只清 `node_modules`/`target`,不动 MySQL 数据文件,账号不会丢;② 改 `sql` 脚本千万别给用户表加 `DROP`。
