@@ -56,7 +56,7 @@ async function request(method, url, params = {}, body = null) {
     response = await fetch(finalUrl, options)
   } catch (err) {
     // 网络层失败：通常是后端没启动，或被 CORS / 代理拦截
-    throw new ApiError('无法连接后端服务，请确认后端已启动（默认 http://localhost:8081）')
+    throw new ApiError('无法连接后端服务，请确认后端已启动（默认 http://192.168.68.14:8081）')
   }
 
   let text = ''
@@ -112,7 +112,7 @@ export async function uploadFile(url, file) {
   try {
     response = await fetch(finalUrl, options)
   } catch (err) {
-    throw new ApiError('无法连接后端服务，请确认后端已启动（默认 http://localhost:8081）')
+    throw new ApiError('无法连接后端服务，请确认后端已启动（默认 http://192.168.68.14:8081）')
   }
 
   let text = ''

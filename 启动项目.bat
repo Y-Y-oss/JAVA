@@ -144,11 +144,11 @@ goto fail
 
 :ready
 call :log "=========================================="
-call :log "完成：前端 http://localhost:5173"
-call :log "      后端 http://localhost:8081"
+call :log "完成：前端 http://192.168.68.14:5173"
+call :log "      后端 http://192.168.68.14:8081"
 call :log "验证码答案在 springBootTest\log\xx.log"
 call :log "=========================================="
-start "" "http://localhost:5173"
+start "" "http://192.168.68.14:5173"
 goto end
 
 :fail

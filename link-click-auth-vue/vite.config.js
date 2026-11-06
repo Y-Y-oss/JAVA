@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // 后端服务地址（spring.profiles.active=dev -> server.port=8081）
-const API_TARGET = 'http://localhost:8081'
+// 改为本机局域网 IP，方便其他设备通过 http://192.168.68.14:5173 访问时也能正确转发到后端
+const API_TARGET = 'http://192.168.68.14:8081'
 
 export default defineConfig({
   plugins: [vue()],
