@@ -11,7 +11,7 @@
  Target Server Version : 80408 (8.4.8)
  File Encoding         : 65001
 
- Date: 05/11/2026 22:28:55
+ Date: 06/11/2026 12:44:57
 */
 
 SET NAMES utf8mb4;
@@ -74,7 +74,7 @@ CREATE TABLE `lc_refresh_token`  (
   INDEX `idx_lc_refresh_token_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_family`(`family_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_expire`(`expires_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 52 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 54 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_refresh_token
@@ -130,6 +130,8 @@ INSERT INTO `lc_refresh_token` VALUES (48, 25, '2fe38e4892258e667f2ea52a3223b068
 INSERT INTO `lc_refresh_token` VALUES (49, 26, 'c68c8f2ff764167914e0e50193b2373c3e33434cb7eaa5cfce2d7dc3ea0c82e0', 'c6d4736f-64ba-454b-b640-f03de1226993', '2026-11-20 22:21:36', 0, NULL, NULL, '2026-11-05 22:21:36', '2026-11-05 22:21:36');
 INSERT INTO `lc_refresh_token` VALUES (50, 27, '0e042063d6b75035e74dd21eb7d913118ba24e41cbc2483d2f4899745a42d618', '68e9b6b8-9d7c-4a4b-ad30-14e22bc74b36', '2026-11-20 22:21:50', 0, NULL, NULL, '2026-11-05 22:21:50', '2026-11-05 22:21:50');
 INSERT INTO `lc_refresh_token` VALUES (51, 28, 'f253198b057e62ddbc0ab872c6b7c9a92fbd9906f88e0bbed52c1acb9718bc80', 'c6829ec8-4c02-4f02-9c43-ce94abe7bcf9', '2026-11-20 22:22:27', 0, NULL, NULL, '2026-11-05 22:22:26', '2026-11-05 22:22:26');
+INSERT INTO `lc_refresh_token` VALUES (52, 3, '6a80202d9b6bb766d5331c7fdb3622861338389f3b589d82807a225898347b67', 'a137863e-b987-46be-8215-19b5b65210d6', '2026-11-20 22:37:12', 0, NULL, NULL, '2026-11-05 22:37:11', '2026-11-05 22:37:11');
+INSERT INTO `lc_refresh_token` VALUES (53, 3, '04f8a5e8fccd90dff07255f3cc5757d122b51fdb2342b85a6b19a1b71c82f7d1', 'a43d59b9-41d4-495a-af4e-83903b968a9e', '2026-11-20 22:37:23', 0, NULL, NULL, '2026-11-05 22:37:22', '2026-11-05 22:37:22');
 
 -- ----------------------------
 -- Table structure for lc_sms_code
@@ -180,8 +182,8 @@ CREATE TABLE `lc_user`  (
 -- Records of lc_user
 -- ----------------------------
 INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '$2a$10$BCOIjfKAsurIU1kEh1JSwOF3TTzrD25CnqhwGQ1xZpHwfB0F6IpeW', 'tester01', 'user', 1, 1, '2026-10-09 14:33:30', '2026-10-09 14:33:27', '2026-10-09 14:33:29', 1);
-INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', 'user', 1, 1, '2026-11-05 21:58:46', '2026-10-28 16:25:05', '2026-11-05 21:58:46', 1);
-INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', 'admin', 1, 1, '2026-11-05 22:15:57', '2026-10-28 16:56:11', '2026-11-05 22:15:57', 0);
+INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', 'admin', 1, 1, '2026-11-05 21:58:46', '2026-10-28 16:25:05', '2026-11-05 22:37:28', 0);
+INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', 'admin', 1, 1, '2026-11-05 22:37:23', '2026-10-28 16:56:11', '2026-11-05 22:37:22', 0);
 INSERT INTO `lc_user` VALUES (4, 'cc', NULL, '$2a$10$8iFeImcuRP32nl23AHR64OKxUcJ.mQzz2LvvzjvDKWjarLm.Dg1bu', 'cc', 'user', 1, 1, '2026-10-28 23:10:15', '2026-10-28 23:10:05', '2026-10-28 23:10:15', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
