@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { createArchive, updateArchive, uploadArchiveImage } from '../api/home'
+import { createArchive, updateArchive, uploadArchiveImage, deleteArchiveImage } from '../api/home'
 import { KNOWN_TAGS } from '../utils/archiveStyle'
 
 const props = defineProps({
@@ -21,6 +21,8 @@ const formError = ref('')
 // 封面照片上传相关
 const coverUrl = ref('')
 const uploading = ref(false)
+const progress = ref(0)
+const isDragOver = ref(false)
 const fileInput = ref(null)
 
 // 打开时根据 initial 填充表单（编辑）或重置（新建）
@@ -48,8 +50,7 @@ function onPickFile() {
   if (fileInput.value) fileInput.value.click()
 }
 
-async function onFileChange(e) {
-  const file = e.target.files && e.target.files[0]
+async function handleFile(file) {
   if (!file) return
   if (!file.type.startsWith('image/')) {
     formError.value = '请选择图片文件（png/jpg/webp/gif）'
@@ -60,9 +61,10 @@ async function onFileChange(e) {
     return
   }
   uploading.value = true
+  progress.value = 0
   formError.value = ''
   try {
-    const res = await uploadArchiveImage(file)
+    const res = await uploadArchiveImage(file, { onProgress: (p) => (progress.value = p) })
     coverUrl.value = (res.data && res.data.url) || ''
   } catch (err) {
     formError.value = err.message || '上传失败'
@@ -72,8 +74,33 @@ async function onFileChange(e) {
   }
 }
 
-function removeCover() {
+function onFileChange(e) {
+  handleFile(e.target.files && e.target.files[0])
+}
+
+function onDrop(e) {
+  isDragOver.value = false
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
+  handleFile(file)
+}
+function onDragOver() {
+  isDragOver.value = true
+}
+function onDragLeave() {
+  isDragOver.value = false
+}
+
+async function removeCover() {
+  const old = coverUrl.value
   coverUrl.value = ''
+  // 若移除的是刚上传/已保存的真实照片，顺手通知后端删除文件，避免磁盘残留
+  if (old && old.startsWith('/uploads/')) {
+    try {
+      await deleteArchiveImage(old)
+    } catch (_) {
+      // 服务端删除失败不影响本地移除体验
+    }
+  }
 }
 
 async function onSubmit() {
@@ -151,22 +178,25 @@ async function onSubmit() {
 
           <div class="fld">
             <span class="fld-label">封面照片</span>
-            <div class="cover-upload">
+            <div class="cover-upload" :class="{ 'drag-over': isDragOver }"
+                 @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
               <div v-if="coverUrl" class="cover-preview">
                 <img :src="coverUrl" alt="封面预览" />
                 <div class="cover-actions">
                   <button type="button" class="ca" @click="onPickFile">重新上传</button>
                   <button type="button" class="ca danger" @click="removeCover">移除</button>
                 </div>
+                <div v-if="uploading" class="cover-progress"><div class="bar" :style="{ width: progress + '%' }"></div></div>
               </div>
               <button v-else type="button" class="cover-pick" :disabled="uploading" @click="onPickFile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
                 </svg>
-                <span>{{ uploading ? '上传中…' : '上传一张照片' }}</span>
+                <span>{{ uploading ? '上传中… ' + progress + '%' : '上传一张照片' }}</span>
               </button>
               <input ref="fileInput" type="file" accept="image/*" class="hidden-file" @change="onFileChange" />
-              <p class="cover-hint">支持 png/jpg/webp/gif，≤5MB。留空则使用系统默认封面。</p>
+              <div v-if="uploading" class="progress"><div class="bar" :style="{ width: progress + '%' }"></div></div>
+              <p class="cover-hint">支持 png/jpg/webp/gif，≤5MB。把图片拖到此处也能上传；留空则使用系统默认封面。</p>
             </div>
           </div>
 
@@ -263,6 +293,12 @@ async function onSubmit() {
 .cover-pick svg { width: 20px; height: 20px; }
 .hidden-file { display: none; }
 .cover-hint { font-size: 11.5px; color: #8b97bd; }
+
+.cover-upload.drag-over { border-radius: 12px; border: 1px dashed var(--cyan); background: rgba(45, 226, 230, .1); padding: 10px; }
+.progress { width: 100%; max-width: 260px; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, .12); }
+.progress .bar { height: 100%; background: linear-gradient(135deg, var(--cyan), var(--magenta)); transition: width .2s ease; }
+.cover-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0, 0, 0, .35); }
+.cover-progress .bar { height: 100%; background: linear-gradient(135deg, var(--cyan), var(--magenta)); transition: width .2s ease; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 .pop-enter-active, .pop-leave-active { transition: opacity .26s ease; }

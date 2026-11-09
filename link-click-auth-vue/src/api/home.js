@@ -83,6 +83,16 @@ export function deleteArchive(id) {
  * @param {File} file 图片文件（png/jpg/webp/gif，≤5MB）
  * @returns { data: { url } }  url 为可访问的相对路径，如 /uploads/archives/xxxx.png
  */
-export function uploadArchiveImage(file) {
-  return uploadFile('/archives/upload', file)
+export function uploadArchiveImage(file, opts) {
+  return uploadFile('/archives/upload', file, opts)
+}
+
+/**
+ * 删除已上传的封面照片（需登录）  DELETE /api/archives/upload?url=/uploads/archives/xxx.png
+ * 用于「移除封面」或「编辑时替换封面」时清理服务端文件，避免磁盘残留。
+ * @param {string} url 上传接口返回的相对路径，如 /uploads/archives/xxxx.png
+ * @returns { data: { deleted } }
+ */
+export function deleteArchiveImage(url) {
+  return del('/archives/upload', { url })
 }

@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -157,7 +158,13 @@ public class ArchiveController {
             throw new BusinessException(403, "只能编辑自己的档案");
         }
 
+        String oldCover = archive.getCover();
         applyDto(archive, dto);
+        // 替换封面时清理旧封面文件，避免磁盘残留
+        if (oldCover != null && !oldCover.equals(archive.getCover())
+                && oldCover.startsWith("/uploads/archives/")) {
+            deleteCoverFileIfUploaded(oldCover);
+        }
         archiveMapper.updateById(archive);
 
         log.info("编辑档案 userId={}, archiveId={}", userId, id);
@@ -175,6 +182,8 @@ public class ArchiveController {
             throw new BusinessException(403, "只能删除自己的档案");
         }
         archiveMapper.deleteById(id);
+        // 顺手清理该档案的封面文件，避免磁盘残留
+        deleteCoverFileIfUploaded(archive.getCover());
 
         log.info("删除档案 userId={}, archiveId={}", userId, id);
         Map<String, Object> data = new LinkedHashMap<>();
@@ -288,6 +297,15 @@ public class ArchiveController {
             throw new BusinessException("图片不能超过 5MB");
         }
 
+        // 真实图片校验：读取文件头魔数，避免伪造 content-type 上传非图片文件（如改了后缀的脚本）
+        try (InputStream in = file.getInputStream()) {
+            if (!isRealImage(in)) {
+                throw new BusinessException("文件不是有效的图片（支持 png/jpg/webp/gif）");
+            }
+        } catch (IOException e) {
+            throw new BusinessException("文件读取失败：" + e.getMessage());
+        }
+
         // 仅允许安全的扩展名，避免任意后缀落盘
         String original = file.getOriginalFilename();
         String ext = "png";
@@ -316,6 +334,31 @@ public class ArchiveController {
         return R.ok("上传成功", data);
     }
 
+    // ============================ 9.1 删除已上传的照片 ============================
+
+    /**
+     * 删除已上传到 uploads/archives/ 的照片文件（需登录）。
+     * 仅接受 /uploads/archives/ 开头的相对地址，并做路径穿越防护，避免任意文件删除。
+     * 主要用于「移除封面」或「编辑时替换封面」时清理旧文件，防止磁盘堆积垃圾。
+     */
+    @DeleteMapping("/upload")
+    public R<Map<String, Object>> deleteUpload(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam("url") String url) {
+        requireUserId(authorization);
+        if (url == null || !url.startsWith("/uploads/archives/")) {
+            throw new BusinessException("非法的图片地址");
+        }
+        String filename = url.substring("/uploads/archives/".length());
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+            throw new BusinessException("非法的图片地址");
+        }
+        File target = new File(new File(uploadDir, "archives"), filename);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deleted", target.exists() && target.delete());
+        return R.ok("处理完成", data);
+    }
+
     // ============================ 私有工具 ============================
 
     private Archive requireArchive(Long id) {
@@ -325,6 +368,34 @@ public class ArchiveController {
         }
         return archive;
     }
+
+    /** 通过文件头魔数判断是否为受支持的图片格式（与允许的扩展名保持一致，避免依赖可被伪造的 content-type） */
+    private boolean isRealImage(InputStream in) throws IOException {
+        byte[] head = new byte[12];
+        int n = in.read(head);
+        if (n < 4) return false;
+        // PNG: 89 50 4E 47
+        if (head[0] == (byte) 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47) return true;
+        // JPG/JPEG: FF D8 FF
+        if ((head[0] & 0xFF) == 0xFF && head[1] == (byte) 0xD8 && head[2] == (byte) 0xFF) return true;
+        // GIF: 47 49 46 38
+        if (head[0] == 0x47 && head[1] == 0x49 && head[2] == 0x46) return true;
+        // WEBP: RIFF....WEBP
+        if (n >= 12 && head[0] == 0x52 && head[1] == 0x49 && head[2] == 0x46 && head[3] == 0x46
+                && head[8] == 0x57 && head[9] == 0x45 && head[10] == 0x42 && head[11] == 0x50) return true;
+        return false;
+    }
+
+    /** 删除 uploads/archives/ 下的封面文件（best-effort，含路径穿越防护）。封面为 null 或系统默认封面时跳过。 */
+    private void deleteCoverFileIfUploaded(String cover) {
+        if (cover == null || !cover.startsWith("/uploads/archives/")) return;
+        String filename = cover.substring("/uploads/archives/".length());
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) return;
+        File target = new File(new File(uploadDir, "archives"), filename);
+        if (target.exists()) target.delete();
+    }
+
+
 
     /** 把 DTO 内容套到实体上（标题/内容/日期/标签/可见性） */
     private void applyDto(Archive archive, ArchiveDTO dto) {
