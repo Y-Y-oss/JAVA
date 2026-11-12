@@ -1,9 +1,11 @@
 <script setup>
-import { inject, computed } from 'vue'
+import { inject, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { uploadAvatar } from '../api/user'
 
 const user = inject('appUser')
 const onLogout = inject('appLogout')
+const notify = inject('appNotify', null)
 
 const route = useRoute()
 const router = useRouter()
@@ -26,6 +28,39 @@ function go(path) {
 const initial = computed(() =>
   (user && (user.value?.nickname || user.value?.username || '?'))?.slice(0, 1).toUpperCase()
 )
+
+/* ===== 头像：有图显示图，没图显示首字母；点头像可上传更换 ===== */
+const avatarInput = ref(null)
+const avatarUploading = ref(false)
+
+function pickAvatar() {
+  if (avatarInput.value) avatarInput.value.click()
+}
+
+async function onAvatarChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    if (notify) notify('✗ 请选择图片文件（png/jpg/webp/gif）')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    if (notify) notify('✗ 图片不能超过 5MB')
+    return
+  }
+  avatarUploading.value = true
+  try {
+    const res = await uploadAvatar(file)
+    // user 是 App.vue provide 下来的 ref，直接改值即可全局生效
+    if (user && user.value) user.value = { ...user.value, avatar: res.data.url }
+    if (notify) notify('✓ 头像已更新')
+  } catch (err) {
+    if (notify) notify('✗ ' + (err.message || '上传失败'))
+  } finally {
+    avatarUploading.value = false
+    if (avatarInput.value) avatarInput.value.value = ''
+  }
+}
 </script>
 
 <template>
@@ -71,7 +106,16 @@ const initial = computed(() =>
       </nav>
 
       <div class="nav-user">
-        <div class="avatar" :title="user?.nickname || user?.username">{{ initial }}</div>
+        <div
+          class="avatar"
+          :class="{ clickable: true, uploading: avatarUploading }"
+          :title="user?.avatar ? '点击更换头像' : '点击上传头像'"
+          @click="pickAvatar"
+        >
+          <img v-if="user?.avatar" class="avatar-img" :src="user.avatar" alt="头像" />
+          <span v-else>{{ initial }}</span>
+        </div>
+        <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChange" />
         <div class="u-meta">
           <span class="u-name">{{ user?.nickname || user?.username }}</span>
           <span class="u-role">{{ user?.permission === 0 ? '管理员' : '时光代理人' }}</span>
@@ -141,10 +185,14 @@ const initial = computed(() =>
 .nav-user { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 16px; font-weight: 600; color: #04121f;
+  font-size: 16px; font-weight: 600; color: #04121f; overflow: hidden;
   background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta));
   box-shadow: 0 6px 18px rgba(45, 226, 230, .4); user-select: none;
+  cursor: pointer; transition: transform .2s, box-shadow .2s;
 }
+.avatar:hover { transform: scale(1.08); box-shadow: 0 8px 22px rgba(255, 72, 196, .45); }
+.avatar.uploading { opacity: .6; }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .u-meta { display: flex; flex-direction: column; line-height: 1.2; }
 .u-name { font-size: 13.5px; font-weight: 600; color: #eef2ff; }
 .u-role { font-size: 11px; color: var(--cyan-soft); }

@@ -5,10 +5,15 @@ import ArchiveCard from '../components/ArchiveCard.vue'
 import ArchiveDetail from '../components/ArchiveDetail.vue'
 import ArchiveForm from '../components/ArchiveForm.vue'
 import GameCenter from '../components/GameCenter.vue'
+import FriendsPanel from '../components/FriendsPanel.vue'
 import { fetchPublicArchives, getArchive, updateArchive, deleteArchive } from '../api/home'
+import { toggleLike, toggleFavorite } from '../api/social'
+import { applyFriend, fetchFriends, fetchFriendRequests, fetchSentRequests } from '../api/friends'
 import { KNOWN_TAGS, coverStyle } from '../utils/archiveStyle'
 
 const notify = inject('appNotify')
+// 当前登录用户（App.vue provide 注入），未登录时点赞/收藏只提示不请求
+const user = inject('appUser', null)
 
 // ===== B 站 · 时光代理人 相关视频 =====
 // 官方番剧与影像入口，点击在新标签页打开哔哩哔哩观看（链接均为 B 站真实地址）。
@@ -16,28 +21,35 @@ const biliVideos = [
   {
     title: '时光代理人 · 官方番剧总览',
     desc: '第一季 / 第二季 / 英都篇 / 第三季 全集',
-    cover: '/img/gallery/g1.png',
+    cover: '/img/bili/overview.png',
     url: 'https://www.bilibili.com/bangumi/media/md28230742/',
     tag: '番剧总览'
   },
   {
     title: '时光代理人 第一季',
     desc: '2021 · 全12话 · 9.8 分',
-    cover: '/img/gallery/g2.png',
+    cover: '/img/bili/s1.png',
     url: 'https://bilibili.com/bangumi/play/ep411221',
     tag: '第一季'
   },
   {
+    title: '时光代理人 第二季',
+    desc: '2023 · 全12话 · 热播完结',
+    cover: '/img/bili/s2.png',
+    url: 'https://www.bilibili.com/bangumi/play/ss39666',
+    tag: '第二季'
+  },
+  {
     title: '时光代理人 第三季',
     desc: '2026 · 英都新篇章 · 更新中',
-    cover: '/img/gallery/g3.png',
+    cover: '/img/bili/s3.png',
     url: 'https://www.bilibili.com/bangumi/play/ss105212',
     tag: '第三季'
   },
   {
     title: '更多二创 · 混剪 · 反应视频',
     desc: '去 B 站搜「时光代理人」看全站相关',
-    cover: '/img/gallery/g4.png',
+    cover: '/img/bili/extra.png',
     url: 'https://search.bilibili.com/all?keyword=时光代理人',
     tag: '社区二创'
   }
@@ -64,6 +76,7 @@ async function load() {
   } finally {
     loading.value = false
   }
+  loadFriendState()
 }
 
 /* 社区概览：公开档案数 / 时光收藏家数 / 标签分布 */
@@ -162,6 +175,98 @@ async function onDelete(arch) {
   }
 }
 
+/* ===== 好友面板 ===== */
+const friendsOpen = ref(false)
+
+/* ===== 档案墙一键加好友：纯文字按钮 + 状态区分（✓好友/已申请/通过验证） ===== */
+const friendNames = ref(new Set())   // 已是好友
+const sentNames = ref(new Set())     // 我发出、待对方验证
+const incomingNames = ref(new Set()) // 对方发给我、待我验证
+
+async function loadFriendState() {
+  const u = user && user.value
+  if (!u) return
+  try {
+    const [f, r, s] = await Promise.all([fetchFriends(), fetchFriendRequests(), fetchSentRequests()])
+    friendNames.value = new Set((f.data || []).map((x) => x.username))
+    incomingNames.value = new Set((r.data || []).map((x) => x.username))
+    sentNames.value = new Set((s.data || []).map((x) => x.username))
+  } catch (_) { /* 未登录/网络问题忽略 */ }
+}
+
+/** 档案作者的好友状态：self 自己（不显示按钮）/ friends 已是好友 / incoming 待我验证 / sent 已申请 / none 未加 */
+function friendStateOf(arch) {
+  const u = user && user.value
+  if (!u) return 'guest'
+  if (arch.userId === u.id) return 'self'
+  if (friendNames.value.has(arch.username)) return 'friends'
+  if (incomingNames.value.has(arch.username)) return 'incoming'
+  if (sentNames.value.has(arch.username)) return 'sent'
+  return 'none'
+}
+
+async function handleAddFriend(arch) {
+  const u = user && user.value
+  if (!u) { if (notify) notify('✗ 请先登录，再添加好友'); return }
+  // 对方已申请过我 → 直接打开好友面板去验证
+  if (friendStateOf(arch) === 'incoming') {
+    friendsOpen.value = true
+    return
+  }
+  try {
+    const res = await applyFriend(arch.username)
+    if (notify) notify('✓ ' + (res.message || '好友申请已发送'))
+    await loadFriendState()
+  } catch (err) {
+    if (notify) notify('✗ ' + (err.message || '申请失败'))
+  }
+}
+
+/* ===== 社区互动：点赞 / 收藏（卡片上直接切换） ===== */
+function requireLogin() {
+  const u = user && user.value
+  if (!u) {
+    if (notify) notify('✗ 请先登录，再来和大家互动')
+    return false
+  }
+  return true
+}
+
+/** 本地即时更新某档案的互动字段，避免整墙重拉 */
+function patchItem(id, patch) {
+  const idx = allItems.value.findIndex((a) => a.id === id)
+  if (idx >= 0) allItems.value[idx] = { ...allItems.value[idx], ...patch }
+  if (featured.value && featured.value.id === id) featured.value = { ...featured.value, ...patch }
+}
+
+async function onToggleLike(arch) {
+  if (!requireLogin()) return
+  const liked = !arch.liked
+  const likeCount = Math.max(0, (arch.likeCount || 0) + (liked ? 1 : -1))
+  patchItem(arch.id, { liked, likeCount }) // 乐观更新，失败再回滚
+  try {
+    const res = await toggleLike(arch.id)
+    patchItem(arch.id, res.data || {})
+  } catch (err) {
+    patchItem(arch.id, { liked: arch.liked, likeCount: arch.likeCount })
+    if (notify) notify('✗ ' + (err.message || '点赞失败'))
+  }
+}
+
+async function onToggleFavorite(arch) {
+  if (!requireLogin()) return
+  const favorited = !arch.favorited
+  const favoriteCount = Math.max(0, (arch.favoriteCount || 0) + (favorited ? 1 : -1))
+  patchItem(arch.id, { favorited, favoriteCount })
+  try {
+    const res = await toggleFavorite(arch.id)
+    patchItem(arch.id, res.data || {})
+  } catch (err) {
+    patchItem(arch.id, { favorited: arch.favorited, favoriteCount: arch.favoriteCount })
+    if (notify) notify('✗ ' + (err.message || '收藏失败'))
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -183,6 +288,10 @@ onMounted(load)
         <div class="ov-card">
           <span class="ov-num">{{ stats.authors }}</span>
           <span class="ov-label">时光收藏家</span>
+        </div>
+        <div class="ov-card friend-card" @click="friendsOpen = true" title="添加好友 / 验证申请">
+          <span class="ov-num">👥</span>
+          <span class="ov-label">我的好友</span>
         </div>
         <div class="ov-tags">
           <span class="ov-tags-title">标签分布</span>
@@ -303,7 +412,12 @@ onMounted(load)
             :archive="m"
             :author="m.username"
             :cover-h="150"
+            interactive
+            :friend-state="friendStateOf(m)"
             @open="openDetail"
+            @like="onToggleLike"
+            @fav="onToggleFavorite"
+            @add-friend="handleAddFriend"
           />
         </div>
       </div>
@@ -318,6 +432,7 @@ onMounted(load)
       @delete="onDelete"
     />
     <ArchiveForm :initial="formInitial" :show="formShow" @saved="onFormSaved" @close="onFormClose" />
+    <FriendsPanel :show="friendsOpen" @close="friendsOpen = false" />
   </div>
 </template>
 
@@ -330,11 +445,13 @@ onMounted(load)
 
 /* ===== 社区概览 ===== */
 .overview {
-  display: grid; grid-template-columns: 150px 150px 1fr; gap: 16px; align-items: stretch;
+  display: grid; grid-template-columns: 150px 150px 150px 1fr; gap: 16px; align-items: stretch;
   max-width: 980px; margin: 0 auto 26px; padding: 18px 20px;
   border-radius: 18px; background: linear-gradient(160deg, rgba(18, 22, 52, .7), rgba(12, 14, 38, .62));
   border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
 }
+.friend-card { cursor: pointer; transition: .22s; border-radius: 12px; }
+.friend-card:hover { background: rgba(45, 226, 230, .1); transform: translateY(-2px); }
 .ov-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   border-right: 1px solid rgba(255, 255, 255, .1); }
 .ov-card:last-of-type { border-right: 0; }

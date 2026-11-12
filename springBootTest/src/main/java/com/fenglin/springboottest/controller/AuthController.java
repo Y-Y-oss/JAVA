@@ -1,16 +1,21 @@
 package com.fenglin.springboottest.controller;
 
 import com.fenglin.springboottest.common.R;
+import com.fenglin.springboottest.common.BusinessException;
 import com.fenglin.springboottest.dto.LoginDTO;
 import com.fenglin.springboottest.dto.RegisterDTO;
 import com.fenglin.springboottest.dto.ChangePasswordDTO;
 import com.fenglin.springboottest.dto.RefreshTokenDTO;
 import com.fenglin.springboottest.dto.ResetPasswordDTO;
 import com.fenglin.springboottest.dto.UpdateProfileDTO;
+import com.fenglin.springboottest.entity.User;
+import com.fenglin.springboottest.mapper.UserMapper;
 import com.fenglin.springboottest.service.AuthService;
 import com.fenglin.springboottest.service.CaptchaService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,8 +27,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 认证接口（供 link-click-auth-vue 前端调用）
@@ -52,9 +64,106 @@ public class AuthController {
     @Autowired
     private CaptchaService captchaService;
 
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private com.fenglin.springboottest.util.JwtUtil jwtUtil;
+
+    /** 上传根目录（头像存到其 avatars/ 子目录），与档案封面共用同一配置 */
+    @Value("${file.upload-dir:./uploads}")
+    private String uploadDir;
+
     /** 从 Authorization 头取出不含 Bearer 前缀的 token */
     private String resolveToken(String authorization) {
         return authorization == null ? "" : authorization.replaceFirst("(?i)^Bearer\\s+", "").trim();
+    }
+
+    /** 校验已登录并返回当前用户实体 */
+    private User requireUser(String authorization) {
+        String token = resolveToken(authorization);
+        if (!StringUtils.hasText(token)) {
+            throw new BusinessException(401, "未携带登录凭证，请重新登录");
+        }
+        authService.checkRole(token);
+        User user = userMapper.selectById(jwtUtil.getUserId(token));
+        if (user == null) {
+            throw new BusinessException(401, "登录状态异常，请重新登录");
+        }
+        return user;
+    }
+
+    /**
+     * 上传头像（需登录）：multipart/form-data，字段名 file，仅限图片且 ≤5MB。
+     * 保存到上传目录 avatars/ 子目录，UUID 重命名，写回 lc_user.avatar，
+     * 返回可访问的相对 URL（如 /uploads/avatars/xxx.png）。
+     */
+    @PostMapping(value = "/avatar", consumes = "multipart/form-data")
+    public R<Map<String, Object>> uploadAvatar(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                               @RequestParam("file") MultipartFile file) {
+        User user = requireUser(authorization);
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要上传的图片");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BusinessException("仅支持上传图片文件（png/jpg/webp/gif）");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BusinessException("图片不能超过 5MB");
+        }
+
+        // 真实图片校验：读文件头魔数，防止伪造 content-type（与档案封面同一套规则）
+        try (InputStream in = file.getInputStream()) {
+            byte[] head = new byte[12];
+            int n = in.read(head);
+            boolean ok = false;
+            if (n >= 4) {
+                ok = (head[0] == (byte) 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47)
+                        || ((head[0] & 0xFF) == 0xFF && head[1] == (byte) 0xD8 && head[2] == (byte) 0xFF)
+                        || (head[0] == 0x47 && head[1] == 0x49 && head[2] == 0x46);
+            }
+            if (!ok && n >= 12) {
+                ok = head[0] == 0x52 && head[1] == 0x49 && head[2] == 0x46 && head[3] == 0x46
+                        && head[8] == 0x57 && head[9] == 0x45 && head[10] == 0x42 && head[11] == 0x50;
+            }
+            if (!ok) {
+                throw new BusinessException("文件不是有效的图片（支持 png/jpg/webp/gif）");
+            }
+        } catch (IOException e) {
+            throw new BusinessException("文件读取失败：" + e.getMessage());
+        }
+
+        String original = file.getOriginalFilename();
+        String ext = "png";
+        if (original != null && original.contains(".")) {
+            String e = original.substring(original.lastIndexOf('.') + 1).toLowerCase();
+            if (Arrays.asList("png", "jpg", "jpeg", "webp", "gif").contains(e)) {
+                ext = e;
+            }
+        }
+        String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+
+        File dir = new File(new File(uploadDir).getAbsoluteFile(), "avatars");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new BusinessException("上传目录创建失败，请联系管理员");
+        }
+        File dest = new File(dir, filename);
+        try {
+            // 关键：transferTo 必须传绝对路径，否则 Tomcat 会把相对路径解析到它的临时工作目录
+            file.transferTo(dest);
+        } catch (IOException e) {
+            throw new BusinessException("文件保存失败：" + e.getMessage());
+        }
+
+        String url = "/uploads/avatars/" + filename;
+        user.setAvatar(url);
+        userMapper.updateById(user);
+        log.info("头像已更新 userId={}, url={}", user.getId(), url);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("url", url);
+        return R.ok("头像已更新", data);
     }
 
     /**

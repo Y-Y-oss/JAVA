@@ -6,9 +6,23 @@ const props = defineProps({
   archive: { type: Object, required: true },
   author: { type: String, default: '' },
   coverH: { type: Number, default: 142 },
-  compact: { type: Boolean, default: false }
+  compact: { type: Boolean, default: false },
+  // 社区模式：卡片底部显示 点赞/收藏/评论 互动栏（首页私有档案不显示）
+  interactive: { type: Boolean, default: false },
+  // 作者的好友状态：self 自己（不显示）/ guest 未登录 / friends 已是好友 / incoming 待我验证 / sent 已申请 / none 未加
+  friendState: { type: String, default: '' }
 })
-defineEmits(['open'])
+defineEmits(['open', 'like', 'fav', 'add-friend'])
+
+const friendBtnText = computed(() => {
+  switch (props.friendState) {
+    case 'friends': return '✓ 好友'
+    case 'incoming': return '通过验证'
+    case 'sent': return '已申请'
+    case 'none': return '＋ 好友'
+    default: return '' // self / guest 不显示
+  }
+})
 
 const photoUrl = computed(() => (hasCover(props.archive) ? coverUrl(props.archive) : ''))
 const tagLabel = computed(() => props.archive?.tag || '时光')
@@ -45,7 +59,38 @@ function excerpt(c, n = 46) {
       <p class="ac-excerpt" v-if="archive.content && !compact">{{ excerpt(archive.content) }}</p>
       <div class="ac-foot">
         <span class="ac-author" v-if="author">@{{ author }}</span>
+        <button
+          v-if="friendBtnText && friendState !== 'friends'"
+          class="ac-friend"
+          :class="{ pending: friendState === 'sent', verify: friendState === 'incoming' }"
+          :disabled="friendState === 'sent'"
+          :title="friendState === 'incoming' ? '对方申请加你为好友，点击去验证' : '申请添加对方为好友（需对方验证）'"
+          @click.stop="$emit('add-friend', archive)"
+        >{{ friendBtnText }}</button>
+        <span v-else-if="friendState === 'friends'" class="ac-friend ok" @click.stop>✓ 好友</span>
         <span class="ac-date">{{ archive.archiveDate || '—' }}</span>
+      </div>
+
+      <!-- 社区互动栏：点赞 / 收藏 / 评论数（点击事件不冒泡，避免触发卡片打开详情） -->
+      <div v-if="interactive" class="ac-social" @click.stop>
+        <button class="acx like" :class="{ on: archive.liked }" @click="$emit('like', archive)" :title="archive.liked ? '取消点赞' : '点赞'">
+          <svg viewBox="0 0 24 24" :fill="archive.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+          </svg>
+          <span>{{ archive.likeCount || 0 }}</span>
+        </button>
+        <button class="acx fav" :class="{ on: archive.favorited }" @click="$emit('fav', archive)" :title="archive.favorited ? '取消收藏' : '收藏'">
+          <svg viewBox="0 0 24 24" :fill="archive.favorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l3 6.5 7 .8-5.2 4.7 1.5 6.9L12 17.3 5.7 21l1.5-6.9L2 9.3l7-.8z" />
+          </svg>
+          <span>{{ archive.favoriteCount || 0 }}</span>
+        </button>
+        <button class="acx cmt" @click="$emit('open', archive)" title="查看评论">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>{{ archive.commentCount || 0 }}</span>
+        </button>
       </div>
     </div>
   </article>
@@ -145,4 +190,30 @@ function excerpt(c, n = 46) {
 .ac-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
 .ac-author { font-size: 12px; color: var(--cyan-soft); }
 .ac-date { font-size: 12px; color: #7e8ab0; }
+
+/* 作者行「加好友」按钮：纯文字 + 状态颜色区分 */
+.ac-friend {
+  margin-left: auto;
+  border: 0; cursor: pointer; font-family: inherit; font-size: 12px;
+  color: #7af5f7; background: transparent; padding: 3px 6px; transition: .2s;
+}
+.ac-friend:hover:not(:disabled) { color: #fff; }
+.ac-friend.pending { color: #8b97bd; cursor: default; }
+.ac-friend.verify { color: #ffd166; }
+.ac-friend.ok { color: #7ee8b0; cursor: default; }
+
+/* 社区互动栏 */
+.ac-social { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, .09); }
+.acx {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; cursor: pointer; font-family: inherit; font-size: 12px; color: #8b97bd;
+  background: transparent; padding: 4px 8px; border-radius: 9px; transition: .2s;
+}
+.acx svg { width: 15px; height: 15px; }
+.acx:hover { color: #fff; background: rgba(255, 255, 255, .09); }
+.acx.like.on { color: #ff5e9c; }
+.acx.like.on:hover { background: rgba(255, 94, 156, .16); }
+.acx.fav.on { color: #ffd166; }
+.acx.fav.on:hover { background: rgba(255, 209, 102, .16); }
+.acx.cmt:hover { color: var(--cyan-soft); }
 </style>

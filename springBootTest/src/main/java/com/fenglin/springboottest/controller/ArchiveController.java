@@ -67,6 +67,9 @@ public class ArchiveController {
     private ArchiveMapper archiveMapper;
 
     @Autowired
+    private com.fenglin.springboottest.mapper.UserMapper userMapper;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     /** 上传目录（相对后端运行目录，如 springBootTest/uploads），由 application.properties 的 file.upload-dir 指定 */
@@ -116,8 +119,8 @@ public class ArchiveController {
     // ============================ 2. 档案详情 ============================
 
     @GetMapping("/{id}")
-    public R<Archive> detail(@RequestHeader(value = "Authorization", required = false) String authorization,
-                             @PathVariable("id") Long id) {
+    public R<Map<String, Object>> detail(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                         @PathVariable("id") Long id) {
         Long userId = requireUserId(authorization);
         Archive archive = requireArchive(id);
 
@@ -127,7 +130,27 @@ public class ArchiveController {
         if (!own && !open) {
             throw new BusinessException(403, "这份档案是私密的，你没有权限查看");
         }
-        return R.ok("查询成功", archive);
+
+        // 档案字段 + 作者资料（昵称/头像），供详情弹窗展示作者信息
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", archive.getId());
+        data.put("userId", archive.getUserId());
+        data.put("title", archive.getTitle());
+        data.put("content", archive.getContent());
+        data.put("archiveDate", archive.getArchiveDate());
+        data.put("tag", archive.getTag());
+        data.put("cover", archive.getCover());
+        data.put("visibility", archive.getVisibility());
+        data.put("createTime", archive.getCreateTime());
+        data.put("updateTime", archive.getUpdateTime());
+        com.fenglin.springboottest.entity.User author = archive.getUserId() == null
+                ? null : userMapper.selectById(archive.getUserId());
+        if (author != null) {
+            data.put("username", author.getUsername());
+            data.put("nickname", author.getNickname());
+            data.put("authorAvatar", author.getAvatar());
+        }
+        return R.ok("查询成功", data);
     }
 
     // ============================ 3. 新建档案 ============================
@@ -317,7 +340,7 @@ public class ArchiveController {
         }
         String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
 
-        File dir = new File(uploadDir, "archives");
+        File dir = new File(resolveUploadRoot(), "archives");
         if (!dir.exists() && !dir.mkdirs()) {
             throw new BusinessException("上传目录创建失败，请联系管理员");
         }
@@ -353,13 +376,23 @@ public class ArchiveController {
         if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
             throw new BusinessException("非法的图片地址");
         }
-        File target = new File(new File(uploadDir, "archives"), filename);
+        File target = new File(new File(resolveUploadRoot(), "archives"), filename);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("deleted", target.exists() && target.delete());
         return R.ok("处理完成", data);
     }
 
     // ============================ 私有工具 ============================
+
+    /**
+     * 把配置的上传目录解析为绝对路径。
+     * 关键坑：MultipartFile.transferTo() 传相对路径时会被 Tomcat 解析到它自己的
+     * 临时工作目录（tomcat.8081.xxx/work/Tomcat/...）而不是应用运行目录，
+     * 导致「文件保存失败：FileNotFoundException」。统一先转绝对路径再落盘。
+     */
+    private File resolveUploadRoot() {
+        return new File(uploadDir).getAbsoluteFile();
+    }
 
     private Archive requireArchive(Long id) {
         Archive archive = archiveMapper.selectById(id);
@@ -391,7 +424,7 @@ public class ArchiveController {
         if (cover == null || !cover.startsWith("/uploads/archives/")) return;
         String filename = cover.substring("/uploads/archives/".length());
         if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) return;
-        File target = new File(new File(uploadDir, "archives"), filename);
+        File target = new File(new File(resolveUploadRoot(), "archives"), filename);
         if (target.exists()) target.delete();
     }
 

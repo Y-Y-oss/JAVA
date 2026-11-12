@@ -21,8 +21,8 @@
 ## 手动启动(脚本失效时的降级方案,按顺序)
 
 ```bash
-# 1. MySQL(服务名 MySQL84;客户端在 C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe)
-net start MySQL84
+# 1. MySQL(服务名 MySQL80;客户端在 C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe)
+net start MySQL80
 
 # 2. 仅当库不存在时建库(脚本幂等,但会重建 lc_sms_code / lc_refresh_token,别每次跑)
 "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -uroot -p123456 \
@@ -81,6 +81,16 @@ curl http://localhost:5173/api/auth/captcha   # 同样 code:200
 - 可见性 / 可登录性统一由 `lc_user.permission` 决定:`permission=0` 或 `role='admin'` 才放行(`AuthServiceImpl.requireAdmin` 与前端 `NavBar` 都按此判断)。
 - 2026-11-05 修过一个致命漂移:`lc_user` 表缺 `permission` 列 → 所有 `/api/admin/**` 报 `Unknown column 'permission'`、导航后台入口也看不见。已执行
   `ALTER TABLE lc_user ADD COLUMN permission TINYINT NOT NULL DEFAULT 1 ...` 并把 `admin` 账号置为 `permission=0`。**以后若新建管理员,只要确保这两点之一即可。**
+
+## 2026-11-12 新增/修复(别改回去)
+
+1. **照片上传根因修复**:`ArchiveController` 的 `MultipartFile.transferTo()` 传相对路径会被 Tomcat 解析到它自己的临时工作目录(报「文件保存失败」)。已加 `resolveUploadRoot()` 统一转绝对路径(upload / deleteUpload / deleteCoverFileIfUploaded 三处)——**千万别改回相对路径**。
+2. **前端 request.js 的 `del(url, params)` 支持 query 参数**(此前第二参被丢弃,DELETE /archives/upload?url= 必 400)。
+3. **社区互动功能**:新表 `lc_archive_like` / `lc_archive_favorite` / `lc_archive_comment`(在 sql 脚本末尾,幂等);新 `SocialController`(/api/social:点赞切换/收藏切换/互动汇总/评论增删);档案墙 SQL 带 like_count/favorite_count/comment_count 子查询,**且 selectPublicWall 现在查了 cover 列**(别删)。
+   前端:`api/social.js`、ArchiveCard 的 `interactive` 互动栏、ArchiveDetail 评论区。
+4. **五子棋双模式**:GomokuGame.vue 顶部可切「🤖人机 / 👥双人」,切换即重开。
+5. **B 站板块真实封面**:已下载到 `link-click-auth-vue/public/img/bili/`(overview/s1/s2/s3/extra.png),Community.vue 直接引用本地文件;番剧 ID:总览 md28230742、一季 ss35220、二季 ss39666、三季 ss105212。
+6. MySQL 客户端真实路径是 **8.0**(本文档前面已更正);测试账号 `upload_test_01 / Test123456`(userId=29),含公开演示档案 id=10002。
 
 ## 账号持久化(安全结论)
 

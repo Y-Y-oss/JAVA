@@ -91,7 +91,8 @@ async function request(method, url, params = {}, body = null) {
 export const get = (url, params) => request('GET', url, params || {})
 export const post = (url, body) => request('POST', url, {}, body || {})
 export const put = (url, body) => request('PUT', url, {}, body || {})
-export const del = (url) => request('DELETE', url)
+// del 支持查询参数（如 DELETE /archives/upload?url=xxx），此前第二参被丢弃导致后端拿不到 url
+export const del = (url, params) => request('DELETE', url, params || {})
 
 /**
  * 上传文件（multipart/form-data），当前用于时光档案封面照片。

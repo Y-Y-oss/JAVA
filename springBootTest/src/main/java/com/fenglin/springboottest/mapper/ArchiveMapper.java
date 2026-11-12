@@ -16,8 +16,11 @@ public interface ArchiveMapper extends BaseMapper<Archive> {
     /**
      * 查询公开档案墙（visibility=1），带作者用户名，按更新时间倒序
      */
-    @Select("SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, " +
-            "a.create_time, a.update_time " +
+    @Select("SELECT a.id, a.user_id, u.username, u.nickname, u.avatar, a.title, a.content, a.archive_date, a.tag, a.cover, " +
+            "a.create_time, a.update_time, " +
+            "(SELECT COUNT(*) FROM lc_archive_like l WHERE l.archive_id = a.id) AS like_count, " +
+            "(SELECT COUNT(*) FROM lc_archive_favorite f WHERE f.archive_id = a.id) AS favorite_count, " +
+            "(SELECT COUNT(*) FROM lc_archive_comment c WHERE c.archive_id = a.id) AS comment_count " +
             "FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
             "WHERE a.visibility = 1 " +
             "ORDER BY a.update_time DESC LIMIT #{offset}, #{size}")
@@ -33,8 +36,11 @@ public interface ArchiveMapper extends BaseMapper<Archive> {
      * 搜索公开档案墙（visibility=1）：按 标题/内容/标签 模糊匹配，带作者用户名，
      * 按更新时间倒序。q 为空时退化为「列出全部公开档案」。
      */
-    @Select(            "SELECT a.id, a.user_id, u.username, a.title, a.content, a.archive_date, a.tag, a.cover, " +
-            "a.create_time, a.update_time " +
+    @Select(            "SELECT a.id, a.user_id, u.username, u.nickname, u.avatar, a.title, a.content, a.archive_date, a.tag, a.cover, " +
+            "a.create_time, a.update_time, " +
+            "(SELECT COUNT(*) FROM lc_archive_like l WHERE l.archive_id = a.id) AS like_count, " +
+            "(SELECT COUNT(*) FROM lc_archive_favorite f WHERE f.archive_id = a.id) AS favorite_count, " +
+            "(SELECT COUNT(*) FROM lc_archive_comment c WHERE c.archive_id = a.id) AS comment_count " +
             "FROM lc_archive a JOIN lc_user u ON u.id = a.user_id " +
             "WHERE a.visibility = 1 " +
             "AND (a.title LIKE CONCAT('%',#{q},'%') " +

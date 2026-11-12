@@ -33,6 +33,9 @@ public class User implements Serializable {
     /** 昵称 */
     private String nickname;
 
+    /** 头像地址（用户上传后的相对路径，如 /uploads/avatars/xxx.png；空则前端用首字母默认头像） */
+    private String avatar;
+
     /** 账号状态：1-正常，0-禁用 */
     private Integer status;
 

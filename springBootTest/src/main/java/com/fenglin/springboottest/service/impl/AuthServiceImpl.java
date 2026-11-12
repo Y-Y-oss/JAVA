@@ -289,6 +289,7 @@ public class AuthServiceImpl implements AuthService {
         data.put("username", user.getUsername());
         data.put("phone", user.getPhone());
         data.put("nickname", user.getNickname());
+        data.put("avatar", user.getAvatar());
         data.put("role", user.getRole());
         data.put("permission", user.getPermission());
         return R.ok("登录成功，正在穿越时光…", data);
@@ -385,6 +386,7 @@ public class AuthServiceImpl implements AuthService {
         data.put("username", user.getUsername());
         data.put("phone", user.getPhone());
         data.put("nickname", user.getNickname());
+        data.put("avatar", user.getAvatar());
         data.put("role", user.getRole());
         data.put("permission", user.getPermission());
         data.put("lastLoginTime", user.getLastLoginTime());
@@ -601,6 +603,7 @@ public class AuthServiceImpl implements AuthService {
         data.put("username", user.getUsername());
         data.put("phone", user.getPhone());
         data.put("nickname", user.getNickname());
+        data.put("avatar", user.getAvatar());
         data.put("role", user.getRole());
         data.put("permission", user.getPermission());
         data.put("lastLoginTime", user.getLastLoginTime());
