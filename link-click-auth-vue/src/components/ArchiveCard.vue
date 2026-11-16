@@ -10,7 +10,9 @@ const props = defineProps({
   // 社区模式：卡片底部显示 点赞/收藏/评论 互动栏（首页私有档案不显示）
   interactive: { type: Boolean, default: false },
   // 作者的好友状态：self 自己（不显示）/ guest 未登录 / friends 已是好友 / incoming 待我验证 / sent 已申请 / none 未加
-  friendState: { type: String, default: '' }
+  friendState: { type: String, default: '' },
+  // 内容摘要单行显示：超过一行用省略号截断（社区档案墙使用）
+  oneLine: { type: Boolean, default: false }
 })
 defineEmits(['open', 'like', 'fav', 'add-friend'])
 
@@ -56,7 +58,7 @@ function excerpt(c, n = 46) {
 
     <div class="ac-body">
       <h3 class="ac-title">{{ archive.title }}</h3>
-      <p class="ac-excerpt" v-if="archive.content && !compact">{{ excerpt(archive.content) }}</p>
+      <p class="ac-excerpt" :class="{ one: oneLine }" v-if="archive.content && !compact">{{ excerpt(archive.content, oneLine ? 30 : 46) }}</p>
       <div class="ac-foot">
         <span class="ac-author" v-if="author">@{{ author }}</span>
         <button
@@ -187,6 +189,8 @@ function excerpt(c, n = 46) {
   font-size: 12.5px; line-height: 1.6; color: #9fb0d8;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* 单行模式：超过一行以省略号结尾 */
+.ac-excerpt.one { display: block; -webkit-line-clamp: unset; white-space: nowrap; text-overflow: ellipsis; }
 .ac-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
 .ac-author { font-size: 12px; color: var(--cyan-soft); }
 .ac-date { font-size: 12px; color: #7e8ab0; }

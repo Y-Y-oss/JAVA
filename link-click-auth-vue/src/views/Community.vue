@@ -413,6 +413,7 @@ onMounted(load)
             :author="m.username"
             :cover-h="150"
             interactive
+            one-line
             :friend-state="friendStateOf(m)"
             @open="openDetail"
             @like="onToggleLike"

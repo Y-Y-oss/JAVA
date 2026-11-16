@@ -5,7 +5,7 @@ import ArchiveCard from '../components/ArchiveCard.vue'
 import ArchiveDetail from '../components/ArchiveDetail.vue'
 import ArchiveForm from '../components/ArchiveForm.vue'
 import {
-  fetchArchives, getArchive, searchArchives,
+  fetchArchives, fetchPublicArchives, getArchive, searchArchives,
   createArchive, updateArchive, deleteArchive
 } from '../api/home'
 import { coverStyle, hasCover, coverUrl, KNOWN_TAGS } from '../utils/archiveStyle'
@@ -17,19 +17,25 @@ const notify = inject('appNotify')
 
 /* ===== 全部档案 ===== */
 const archives = ref([])
+// 公开档案流（所有人的公开档案）：胶片墙数据源，让「他们上传的照片」都能上墙
+const publicArchives = ref([])
 const loadingMemories = ref(false)
 const memoriesError = ref('')
 
-async function loadArchives() {
-  loadingMemories.value = true
-  memoriesError.value = ''
+async function loadArchives(silent = false) {
+  if (!silent) {
+    loadingMemories.value = true
+    memoriesError.value = ''
+  }
   try {
     const res = await fetchArchives(1, 50)
     archives.value = (res.data && res.data.records) || []
+    const pub = await fetchPublicArchives(1, 50)
+    publicArchives.value = (pub.data && pub.data.records) || []
   } catch (err) {
-    memoriesError.value = '档案加载失败：' + (err.message || '后端未连接')
+    if (!silent) memoriesError.value = '档案加载失败：' + (err.message || '后端未连接')
   } finally {
-    loadingMemories.value = false
+    if (!silent) loadingMemories.value = false
   }
 }
 
@@ -130,8 +136,8 @@ const curPhoto = computed(() =>
 )
 
 /* ===== 时光胶片墙（借鉴 B 站滚动照片墙：双排反向无缝滚动） ===== */
-// 胶片带 = 全部 gallery 素材（14 张风格统一，素材充足不重复）
-const GALLERY_IMGS = Array.from({ length: 14 }, (_, i) => `/img/gallery/g${i + 1}.png`)
+// 兜底素材库：43 张免费官方图库照片（Picsum/Unsplash，可商用），仅在没有用户上传照片时使用
+const LIBRARY_IMGS = Array.from({ length: 43 }, (_, i) => `/img/library/p${i + 1}.jpg`)
 // 每条档案绑定的封面图（用于胶片墙点击时跳转对应档案；其余照片点开灯箱）
 const ARCHIVE_TO_COVER = computed(() => {
   const m = {}
@@ -141,17 +147,29 @@ const ARCHIVE_TO_COVER = computed(() => {
   return m
 })
 
-// 基础胶片：14 张素材，每张都不同
-const filmBase = computed(() =>
-  GALLERY_IMGS.map((src) => {
-    const arch = ARCHIVE_TO_COVER.value[src]
-    return {
-      src,
-      cap: arch ? arch.title : '',
-      id: arch ? arch.id : null
-    }
-  })
-)
+// 胶片带素材：用户真实上传的照片永远排最前（公开档案流 + 本人档案，src+id 双重去重）；
+// 不足 24 张（双排各 12 张观感最佳）时用素材库照片补齐，整个滚动周期内不出现重复照片；
+// 完全没有素材时回退纯素材库
+const filmBase = computed(() => {
+  const seenIds = new Set()
+  const seenSrcs = new Set()
+  const uploaded = []
+  for (const a of publicArchives.value.concat(archives.value)) {
+    const src = coverUrl(a)
+    if (!a.cover || seenIds.has(a.id) || seenSrcs.has(src)) continue
+    seenIds.add(a.id)
+    seenSrcs.add(src)
+    uploaded.push({ src, cap: a.title, id: a.id })
+  }
+  const fillers = LIBRARY_IMGS
+    .filter((s) => !seenSrcs.has(s))
+    .map((src) => {
+      const arch = ARCHIVE_TO_COVER.value[src]
+      return { src, cap: arch ? arch.title : '', id: arch ? arch.id : null }
+    })
+  return uploaded.concat(fillers).slice(0, 24)
+})
+// 双排反向无缝滚动：复制一份做循环（素材库 43 张，同一张照片两次出现相隔半圈，不会同屏撞图）
 const filmRow1 = computed(() => {
   const b = filmBase.value
   return b.concat(b)
@@ -161,11 +179,14 @@ const filmRow2 = computed(() => {
   const b = filmBase.value
   const half = Math.floor(b.length / 2)
   const shifted = b.slice(half).concat(b.slice(0, half))
-  return shifted.reverse().concat(shifted.slice().reverse())
+  return shifted.concat(shifted)
 })
 function openFilm(item) {
-  if (item.id != null) {
-    const a = archives.value.find((x) => x.id === item.id)
+  // 已登录 → 打开档案详情（自己的或公开的都能看）；未登录 → 灯箱看大图
+  if (item.id != null && user && user.value) {
+    const a =
+      publicArchives.value.find((x) => x.id === item.id) ||
+      archives.value.find((x) => x.id === item.id)
     if (a) return openDetail(a)
   }
   openLightbox(item.src, item.cap)
@@ -268,10 +289,16 @@ function randomMemory() {
   openDetail(archives.value[i])
 }
 
+let archivesTimer = null
 onMounted(() => {
   loadArchives().then(() => startAuto())
+  // 实时性：每 15 秒静默拉一次档案列表，别人新上传的照片会自动出现在胶片墙
+  archivesTimer = setInterval(() => loadArchives(true), 15000)
 })
-onBeforeUnmount(stopAuto)
+onBeforeUnmount(() => {
+  stopAuto()
+  if (archivesTimer) clearInterval(archivesTimer)
+})
 </script>
 
 <template>

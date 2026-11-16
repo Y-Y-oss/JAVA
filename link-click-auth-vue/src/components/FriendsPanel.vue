@@ -89,6 +89,12 @@ async function doRemove(f) {
 function fmtTime(t) {
   return (t || '').replace('T', ' ').slice(0, 16)
 }
+
+/** 私聊：通知导航栏打开社交中心并切到「私信」标签页 */
+function openChatWith(f) {
+  emit('close')
+  window.dispatchEvent(new CustomEvent('open-social', { detail: { tab: 'chat' } }))
+}
 </script>
 
 <template>
@@ -126,6 +132,7 @@ function fmtTime(t) {
                 <span class="f-name">@{{ f.username }}</span>
                 <span class="f-since">好友于 {{ fmtTime(f.createTime) }}</span>
               </div>
+              <button class="f-ok" @click="openChatWith(f)">私聊</button>
               <button class="f-del" @click="doRemove(f)">删除</button>
             </li>
           </ul>

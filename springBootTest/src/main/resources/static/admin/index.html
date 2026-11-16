@@ -172,6 +172,15 @@
     margin-top: 8px; padding: 14px; border-radius: 10px; font-size: 13px; line-height: 1.7;
     background: rgba(7,11,28,.5); border: 1px solid rgba(159,176,216,.18); white-space: pre-wrap; word-break: break-word;
   }
+  .modal .detail.av-photo-wrap { padding: 8px; white-space: normal; }
+  .modal .detail.av-photo-wrap img {
+    display: block; width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px;
+    background: rgba(0,0,0,.35); cursor: zoom-in;
+  }
+  .arch-thumb {
+    width: 64px; height: 40px; object-fit: cover; border-radius: 6px;
+    border: 1px solid rgba(159,176,216,.25); cursor: zoom-in; display: block; background: rgba(0,0,0,.3);
+  }
   .modal .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
   .modal .btn.cancel { background: none; border: 1px solid rgba(159,176,216,.3); color: var(--text-dim); }
 
@@ -282,8 +291,8 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>所属用户</th><th>标题</th><th>标签</th>
-            <th>时光节点</th><th>可见性</th><th>更新时间</th><th>操作</th>
+            <th>ID</th><th>所属用户</th><th>照片</th><th>标题</th><th>标签</th>
+            <th>内容</th><th>时光节点</th><th>可见性</th><th>更新时间</th><th>操作</th>
           </tr>
         </thead>
         <tbody id="arch-tbody"></tbody>
@@ -331,6 +340,10 @@
     <p>ID <b id="av-id" style="color:var(--text)"></b> · 所属用户 <b id="av-user" style="color:var(--text)"></b></p>
     <span class="field-label">标题</span>
     <div class="detail" id="av-title"></div>
+    <span class="field-label">照片</span>
+    <div class="detail av-photo-wrap" id="av-photo-wrap" style="display:none">
+      <img id="av-photo" src="" alt="档案照片" title="点击查看原图" onclick="if(this.src)window.open(this.src,'_blank')" />
+    </div>
     <span class="field-label">时光节点 / 标签 / 可见性</span>
     <div class="detail" id="av-meta"></div>
     <span class="field-label">内容</span>
@@ -369,7 +382,8 @@
 <div class="mask" id="mask-arch-del">
   <div class="modal">
     <h3 style="color:var(--danger)">删除档案</h3>
-    <p>确定要删除档案 <b id="del-arch-title" style="color:var(--text)"></b> 吗？<br>该操作不可恢复。</p>
+    <p>确定要删除档案 <b id="del-arch-title" style="color:var(--text)"></b> 吗？<br>
+      <b style="color:var(--danger)">删除后将无法恢复</b>，该档案的照片、内容及所有相关数据都会被永久清除，请谨慎操作。</p>
     <div class="row">
       <button class="btn cancel" onclick="closeModal('mask-arch-del')">取消</button>
       <button class="btn" style="background:var(--danger)" onclick="confirmArchiveDelete()">确认删除</button>
@@ -642,8 +656,13 @@ function loadArchives(page) {
       return '<tr>'
         + '<td class="dim">' + a.id + '</td>'
         + '<td>' + esc(a.username) + '</td>'
+        + '<td>' + (a.cover
+            ? '<img class="arch-thumb" src="' + esc(a.cover) + '" onclick="viewArchive(' + a.id + ')" title="点击查看详情" />'
+            : '<span class="dim">—</span>')
+          + '</td>'
         + '<td class="ellipsis" title="' + esc(a.title) + '">' + esc(a.title) + '</td>'
         + '<td>' + esc(a.tag) + '</td>'
+        + '<td class="ellipsis dim" title="' + esc(a.content || '') + '">' + esc(a.content || '（无内容）') + '</td>'
         + '<td class="dim">' + esc(a.archiveDate) + '</td>'
         + '<td>' + visTag + '</td>'
         + '<td class="dim">' + esc(fmtTime(a.updateTime)) + '</td>'
@@ -672,6 +691,18 @@ function viewArchive(id) {
     document.getElementById('av-id').textContent = a.id;
     document.getElementById('av-user').textContent = (archMap[a.id] && archMap[a.id].username) || '-';
     document.getElementById('av-title').textContent = a.title || '-';
+    // 照片：有上传封面就显示，点击可看原图
+    var photoWrap = document.getElementById('av-photo-wrap');
+    var photo = document.getElementById('av-photo');
+    if (a.cover) {
+      photo.src = a.cover.startsWith('http') ? a.cover : a.cover;
+      photoWrap.style.display = 'block';
+      photoWrap.previousElementSibling.style.display = 'block';
+    } else {
+      photo.src = '';
+      photoWrap.style.display = 'none';
+      photoWrap.previousElementSibling.style.display = 'none';
+    }
     var meta = '时光节点：' + (a.archiveDate || '-')
       + '　|　标签：' + (a.tag || '-')
       + '　|　可见性：' + (a.visibility === 1 ? '公开' : '仅自己');

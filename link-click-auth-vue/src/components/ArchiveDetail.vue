@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, inject, watch } from 'vue'
-import { coverStyle, visibilityText } from '../utils/archiveStyle'
+import { coverStyle, coverUrl, visibilityText } from '../utils/archiveStyle'
 import { getInteraction, toggleLike, toggleFavorite, fetchComments, addComment, deleteComment } from '../api/social'
 import { applyFriend, fetchFriends, fetchFriendRequests, fetchSentRequests } from '../api/friends'
+import ImageLightbox from './ImageLightbox.vue'
 
 const props = defineProps({
   archive: { type: Object, default: null },
@@ -21,6 +22,14 @@ const isOwner = computed(() => {
   return !!(u && props.archive && props.archive.userId === u.id)
 })
 const isLoggedIn = computed(() => !!(user && user.value))
+
+/* ===== 照片大图查看：点详情封面 → 灯箱看完整原图 ===== */
+const lightboxOpen = ref(false)
+const photoUrl = computed(() => coverUrl(props.archive))
+const hasPhoto = computed(() => !!photoUrl.value)
+
+// 切换档案 / 关闭详情时收起灯箱
+watch(() => props.archive, () => { lightboxOpen.value = false })
 
 /* ===== 互动数据（点赞/收藏/评论） ===== */
 const likeCount = ref(0)
@@ -172,9 +181,21 @@ async function handleAddFriend() {
         <div v-else-if="error" class="detail-state err">{{ error }}</div>
 
         <template v-else-if="archive">
-          <div class="detail-cover" :style="coverStyle(archive)">
+          <div
+            class="detail-cover"
+            :class="{ clickable: hasPhoto }"
+            :style="coverStyle(archive)"
+            :title="hasPhoto ? '点击查看完整图片' : ''"
+            @click="hasPhoto && (lightboxOpen = true)"
+          >
             <span class="detail-tag">{{ archive.tag || '时光' }}</span>
             <span class="detail-vis">{{ visibilityText(archive.visibility) }}</span>
+            <span v-if="hasPhoto" class="detail-zoom">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
+              </svg>
+              查看大图
+            </span>
           </div>
           <div class="detail-body">
             <h2 class="detail-title">{{ archive.title }}</h2>
@@ -264,6 +285,9 @@ async function handleAddFriend() {
           </div>
         </template>
       </div>
+
+      <!-- 照片大图灯箱 -->
+      <ImageLightbox :show="lightboxOpen" :src="photoUrl" :alt="archive ? archive.title : ''" @close="lightboxOpen = false" />
     </div>
   </transition>
 </template>
@@ -305,6 +329,19 @@ async function handleAddFriend() {
   display: flex; align-items: flex-end; gap: 10px; padding: 16px;
   background-size: cover; background-repeat: no-repeat; background-color: #0a0e27;
 }
+.detail-cover.clickable { cursor: zoom-in; transition: filter .25s; }
+.detail-cover.clickable:hover { filter: brightness(1.08); }
+/* 右下角「查看大图」提示 */
+.detail-zoom {
+  position: absolute; right: 14px; bottom: 12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: #eef2ff; letter-spacing: 1px;
+  padding: 5px 12px; border-radius: 999px;
+  background: rgba(10, 14, 39, .55); border: 1px solid rgba(255, 255, 255, .3);
+  backdrop-filter: blur(4px); opacity: .85; transition: .25s;
+}
+.detail-zoom svg { width: 13px; height: 13px; }
+.detail-cover.clickable:hover .detail-zoom { opacity: 1; background: rgba(10, 14, 39, .75); }
 .detail-tag {
   position: relative; z-index: 2;
   font-size: 12px; padding: 4px 14px; border-radius: 999px;

@@ -1,7 +1,9 @@
 <script setup>
-import { inject, computed, ref } from 'vue'
+import { inject, computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { uploadAvatar } from '../api/user'
+import { fetchUnread } from '../api/chat'
+import SocialPanel from './SocialPanel.vue'
 
 const user = inject('appUser')
 const onLogout = inject('appLogout')
@@ -28,6 +30,37 @@ function go(path) {
 const initial = computed(() =>
   (user && (user.value?.nickname || user.value?.username || '?'))?.slice(0, 1).toUpperCase()
 )
+
+/* ===== 社交中心：头像旁唯一入口（互动态 + 私信，微博式） ===== */
+const socialOpen = ref(false)
+const socialTab = ref('feed') // 打开时默认进的标签页
+const unreadTotal = ref(0)
+let unreadTimer = null
+
+async function refreshUnread() {
+  if (!user || !user.value) { unreadTotal.value = 0; return }
+  if (socialOpen.value) return // 社交面板打开时由私信页自己清零，避免红点闪烁
+  try {
+    const res = await fetchUnread()
+    unreadTotal.value = (res.data && res.data.total) || 0
+  } catch (_) { /* 后端未启动时静默 */ }
+}
+
+// 好友面板「私聊」等入口通过全局事件直达私信页
+function onOpenSocial(e) {
+  socialTab.value = (e.detail && e.detail.tab) || 'feed'
+  socialOpen.value = true
+}
+
+onMounted(() => {
+  refreshUnread()
+  unreadTimer = setInterval(refreshUnread, 10000) // 10 秒轮询一次未读红点
+  window.addEventListener('open-social', onOpenSocial)
+})
+onBeforeUnmount(() => {
+  if (unreadTimer) clearInterval(unreadTimer)
+  window.removeEventListener('open-social', onOpenSocial)
+})
 
 /* ===== 头像：有图显示图，没图显示首字母；点头像可上传更换 ===== */
 const avatarInput = ref(null)
@@ -106,6 +139,14 @@ async function onAvatarChange(e) {
       </nav>
 
       <div class="nav-user">
+        <!-- 社交中心入口（互动态 + 私信，带未读红点） -->
+        <button class="nav-quick" :class="{ on: socialOpen }" @click="socialOpen = true" title="社交中心（互动态 · 私信）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            <path d="M8.5 10h7M8.5 13h4.5" />
+          </svg>
+          <span v-if="unreadTotal > 0" class="quick-badge">{{ unreadTotal > 99 ? '99+' : unreadTotal }}</span>
+        </button>
         <div
           class="avatar"
           :class="{ clickable: true, uploading: avatarUploading }"
@@ -127,6 +168,15 @@ async function onAvatarChange(e) {
         </button>
       </div>
     </div>
+
+    <!-- 社交中心：互动态（论坛）+ 私信（好友聊天） -->
+    <SocialPanel
+      :show="socialOpen"
+      :unread="unreadTotal"
+      :initial-tab="socialTab"
+      @close="socialOpen = false; refreshUnread()"
+      @read="refreshUnread()"
+    />
   </header>
 </template>
 
@@ -183,6 +233,26 @@ async function onAvatarChange(e) {
 .nav-link.nav-admin:hover { color: #04121f; filter: brightness(1.08); }
 
 .nav-user { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+/* 头像旁的快捷入口：好友聊天 / 论坛 */
+.nav-quick {
+  position: relative;
+  width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .16);
+  color: #aab6da; transition: .25s;
+}
+.nav-quick svg { width: 18px; height: 18px; }
+.nav-quick:hover { color: #fff; border-color: var(--cyan); box-shadow: 0 0 14px rgba(45, 226, 230, .35); }
+.nav-quick.on { color: #04121f; background: linear-gradient(135deg, var(--cyan), var(--purple)); border-color: transparent; }
+.quick-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, #ff48c4, #ff5e9c);
+  box-shadow: 0 3px 10px rgba(255, 72, 196, .55);
+  animation: badgePop .3s ease;
+}
+@keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
   font-size: 16px; font-weight: 600; color: #04121f; overflow: hidden;
