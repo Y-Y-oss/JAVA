@@ -9,6 +9,8 @@ import {
   createArchive, updateArchive, deleteArchive
 } from '../api/home'
 import { coverStyle, hasCover, coverUrl, KNOWN_TAGS } from '../utils/archiveStyle'
+import { updateProfile, uploadAvatar } from '../api/user'
+import { changePassword } from '../api/auth'
 
 // 由 App.vue 通过 provide 注入：登录用户、退出登录、全局提示
 const user = inject('appUser')
@@ -282,6 +284,106 @@ async function onDelete(arch) {
   }
 }
 
+/* ===== 个人主页设置（资料 + 密码） ===== */
+const PROFILE_BIO_KEY = 'linkclick.profile.bio'
+const bio = ref(localStorage.getItem(PROFILE_BIO_KEY) || '')
+const profileOpen = ref(false)
+const profileNickname = ref('')
+const profileBio = ref('')
+const profileSaving = ref(false)
+const avatarFileInput = ref(null)
+const pwdOld = ref('')
+const pwdNew = ref('')
+const pwdConfirm = ref('')
+const pwdSaving = ref(false)
+
+const profileInitial = computed(() =>
+  (user?.value?.nickname || user?.value?.username || '?').slice(0, 1).toUpperCase()
+)
+const publicCount = computed(() => archives.value.filter(a => a.visibility === 1).length)
+const monthCount = computed(() =>
+  archives.value.filter(a => (a.archiveDate || '').startsWith(monthKey)).length
+)
+const joinDate = computed(() => {
+  const v = user?.value?.createTime || user?.value?.create_time
+  return v ? String(v).slice(0, 10) : '-'
+})
+
+function openProfile() {
+  profileNickname.value = user?.value?.nickname || user?.value?.username || ''
+  profileBio.value = bio.value
+  pwdOld.value = ''
+  pwdNew.value = ''
+  pwdConfirm.value = ''
+  profileOpen.value = true
+}
+function closeProfile() {
+  profileOpen.value = false
+}
+function pickProfileAvatar() {
+  if (avatarFileInput.value) avatarFileInput.value.click()
+}
+async function onProfileAvatarChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) { notify('✗ 请选择图片文件'); return }
+  if (file.size > 5 * 1024 * 1024) { notify('✗ 图片不能超过 5MB'); return }
+  try {
+    const res = await uploadAvatar(file)
+    if (user && user.value) user.value = { ...user.value, avatar: res.data.url }
+    notify('✓ 头像已更新')
+  } catch (err) {
+    notify('✗ ' + (err.message || '上传失败'))
+  } finally {
+    if (avatarFileInput.value) avatarFileInput.value.value = ''
+  }
+}
+async function saveProfile() {
+  const nickname = profileNickname.value.trim()
+  if (!nickname) { notify('✗ 昵称不能为空'); return }
+  profileSaving.value = true
+  try {
+    await updateProfile(nickname)
+    // 个性签名后端暂无字段，先保存在浏览器本地，首页立即生效
+    localStorage.setItem(PROFILE_BIO_KEY, profileBio.value.trim())
+    bio.value = profileBio.value.trim()
+    if (user && user.value) user.value = { ...user.value, nickname }
+    notify('✓ 个人主页已更新')
+    profileOpen.value = false
+  } catch (err) {
+    notify('✗ ' + (err.message || '保存失败'))
+  } finally {
+    profileSaving.value = false
+  }
+}
+async function savePassword() {
+  if (!pwdOld.value || !pwdNew.value || !pwdConfirm.value) {
+    notify('✗ 请填写完整的密码信息'); return
+  }
+  if (pwdNew.value.length < 6 || pwdNew.value.length > 20) {
+    notify('✗ 新密码需 6-20 位'); return
+  }
+  if (pwdNew.value !== pwdConfirm.value) {
+    notify('✗ 两次输入的新密码不一致'); return
+  }
+  pwdSaving.value = true
+  try {
+    await changePassword({
+      oldPassword: pwdOld.value,
+      newPassword: pwdNew.value,
+      confirmPassword: pwdConfirm.value
+    })
+    // 后端 pwd_version +1 会让所有旧 token 失效，必须重新登录
+    notify('✓ 密码已修改，请重新登录')
+    closeProfile()
+    if (onLogout) await onLogout()
+  } catch (err) {
+    notify('✗ ' + (err.message || '修改失败'))
+  } finally {
+    pwdSaving.value = false
+  }
+}
+
 /* ===== 随机回忆 ===== */
 function randomMemory() {
   if (!archives.value.length) return
@@ -308,8 +410,13 @@ onBeforeUnmount(() => {
     <main class="content">
       <!-- Hero -->
       <section class="hero">
+        <div class="hero-avatar" @click="openProfile" title="点击查看我的各个属性">
+          <img v-if="user?.avatar" :src="user.avatar" alt="我的头像" />
+          <span v-else>{{ profileInitial }}</span>
+        </div>
         <h1 class="hero-title">欢迎回来，{{ user?.nickname || user?.username }}</h1>
         <p class="hero-sub">在时光的长河里，找回每一帧被珍藏的瞬间。</p>
+        <p class="hero-bio" v-if="bio">「{{ bio }}」</p>
 
         <form class="searchbar" @submit.prevent="onSearch">
           <svg class="s-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -352,6 +459,12 @@ onBeforeUnmount(() => {
               <path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7" />
             </svg>
             随机回忆
+          </button>
+          <button class="act profile-act" @click="openProfile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+            </svg>
+            个人主页设置
           </button>
         </div>
 
@@ -524,6 +637,77 @@ onBeforeUnmount(() => {
       </section>
     </main>
 
+    <!-- 个人主页设置：资料 + 密码修改 -->
+    <div class="pf-mask" v-if="profileOpen" @click.self="closeProfile">
+      <div class="pf-panel">
+        <div class="pf-head">
+          <h3>个人主页设置</h3>
+          <button class="pf-x" @click="closeProfile" aria-label="关闭">✕</button>
+        </div>
+        <p class="pf-desc">设置你在时光档案中展示的个人资料，以及账号密码。</p>
+
+        <div class="pf-sec-title">个人资料</div>
+        <div class="pf-avatar-row">
+          <div class="pf-avatar" @click="pickProfileAvatar" title="点击更换头像">
+            <img v-if="user?.avatar" :src="user.avatar" alt="头像" />
+            <span v-else>{{ profileInitial }}</span>
+          </div>
+          <div class="pf-avatar-meta">
+            <span class="pf-label">头像</span>
+            <button type="button" class="pf-ghost" @click="pickProfileAvatar">更换头像</button>
+            <span class="pf-hint">png / jpg / webp / gif，≤5MB</span>
+          </div>
+          <input ref="avatarFileInput" type="file" accept="image/*" style="display:none" @change="onProfileAvatarChange" />
+        </div>
+
+        <label class="pf-label" for="pf-nick">昵称</label>
+        <input id="pf-nick" v-model="profileNickname" class="pf-input" type="text" maxlength="50" placeholder="给自己起个名字" />
+
+        <label class="pf-label" for="pf-bio">个性签名</label>
+        <textarea id="pf-bio" v-model="profileBio" class="pf-input pf-textarea" maxlength="80" placeholder="写一句想留在时光里的话…"></textarea>
+        <span class="pf-hint">签名保存在当前浏览器，会显示在首页欢迎语下方。</span>
+
+        <div class="pf-sec-title">我的属性</div>
+        <div class="pf-readonly">
+          <div><span>用户 ID</span><b>{{ user?.id ?? '-' }}</b></div>
+          <div><span>账号</span><b>{{ user?.username || '-' }}</b></div>
+          <div><span>昵称</span><b>{{ user?.nickname || user?.username || '-' }}</b></div>
+          <div><span>角色</span><b>{{ user?.permission === 0 ? '管理员' : '时光代理人' }}</b></div>
+          <div><span>手机号</span><b>{{ user?.phone || '未绑定' }}</b></div>
+          <div><span>加入时间</span><b>{{ joinDate }}</b></div>
+          <div><span>时光档案</span><b>{{ archives.length }} 段</b></div>
+          <div><span>公开分享</span><b>{{ publicCount }} 段</b></div>
+          <div><span>本月新增</span><b>{{ monthCount }} 段</b></div>
+          <div><span>个性签名</span><b>{{ bio || '未设置' }}</b></div>
+        </div>
+
+        <div class="pf-sec-title">修改密码</div>
+        <div class="pf-pwd-grid">
+          <div class="pf-pwd-item">
+            <label class="pf-label" for="pf-old">当前密码</label>
+            <input id="pf-old" v-model="pwdOld" class="pf-input" type="password" autocomplete="current-password" placeholder="请输入当前密码" />
+          </div>
+          <div class="pf-pwd-item">
+            <label class="pf-label" for="pf-new">新密码</label>
+            <input id="pf-new" v-model="pwdNew" class="pf-input" type="password" autocomplete="new-password" maxlength="20" placeholder="6-20 位" />
+          </div>
+          <div class="pf-pwd-item">
+            <label class="pf-label" for="pf-confirm">确认新密码</label>
+            <input id="pf-confirm" v-model="pwdConfirm" class="pf-input" type="password" autocomplete="new-password" maxlength="20" placeholder="再输入一次" />
+          </div>
+        </div>
+        <span class="pf-hint">修改成功后旧登录态会失效，需要重新登录。</span>
+        <div class="pf-pwd-actions">
+          <button type="button" class="pf-ghost" :disabled="pwdSaving" @click="savePassword">{{ pwdSaving ? '修改中…' : '修改密码' }}</button>
+        </div>
+
+        <div class="pf-actions">
+          <button type="button" class="pf-ghost" @click="closeProfile">取消</button>
+          <button type="button" class="pf-save" :disabled="profileSaving" @click="saveProfile">{{ profileSaving ? '保存中…' : '保存资料' }}</button>
+        </div>
+      </div>
+    </div>
+
     <ArchiveDetail
       :archive="detail"
       :loading="detailLoading"
@@ -548,6 +732,46 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.hero-avatar { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; cursor: pointer; font-size: 28px; font-weight: 600; color: #04121f; background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta)); box-shadow: 0 10px 30px rgba(138, 92, 255, .4); transition: transform .25s, box-shadow .25s; }
+.hero-avatar:hover { transform: scale(1.06); box-shadow: 0 14px 38px rgba(255, 72, 196, .5); }
+.hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hero-bio { margin: -14px 0 22px; color: var(--cyan-soft); font-size: 13px; letter-spacing: 1px; }
+.profile-act { border-color: rgba(45, 226, 230, .35); }
+
+/* ===== 个人主页设置弹窗 ===== */
+.pf-mask { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(4, 6, 20, .74); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
+.pf-panel { width: min(470px, 100%); max-height: 88vh; overflow-y: auto; padding: 24px; border-radius: 20px; background: linear-gradient(160deg, rgba(22, 26, 62, .97), rgba(11, 14, 38, .98)); border: 1px solid rgba(255, 255, 255, .16); box-shadow: 0 26px 80px rgba(0, 0, 0, .62); }
+.pf-head { display: flex; align-items: center; justify-content: space-between; }
+.pf-head h3 { font-size: 18px; font-weight: 600; letter-spacing: 1px; color: #fff; }
+.pf-x { width: 30px; height: 30px; border: 0; cursor: pointer; border-radius: 9px; color: #aab6da; background: rgba(255, 255, 255, .08); font-size: 14px; }
+.pf-x:hover { color: #fff; background: rgba(255, 72, 196, .22); }
+.pf-desc { margin: 8px 0 18px; font-size: 12.5px; color: #9fb0d8; }
+.pf-sec-title { font-size: 12px; letter-spacing: 2px; color: var(--cyan); margin: 4px 0 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(45, 226, 230, .18); }
+.pf-avatar-row { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); margin-bottom: 18px; }
+.pf-avatar { width: 58px; height: 58px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; overflow: hidden; cursor: pointer; font-size: 22px; font-weight: 600; color: #04121f; background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta)); }
+.pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pf-avatar-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.pf-label { display: block; font-size: 12.5px; color: #9fb0d8; margin-bottom: 7px; letter-spacing: .5px; }
+.pf-avatar-meta .pf-label { margin-bottom: 0; font-size: 13px; color: #eef2ff; font-weight: 600; }
+.pf-hint { display: block; font-size: 11.5px; color: #7e8ab0; line-height: 1.6; }
+.pf-input { width: 100%; padding: 11px 14px; border-radius: 11px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(7, 11, 28, .6); color: #fff; font-size: 14px; font-family: inherit; outline: none; margin-bottom: 16px; }
+.pf-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(45, 226, 230, .16); }
+.pf-input::placeholder { color: #6f7ba0; }
+.pf-textarea { min-height: 76px; resize: vertical; margin-bottom: 6px; }
+.pf-readonly { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 22px; padding: 14px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); }
+.pf-readonly div { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pf-readonly span { font-size: 11px; color: #7e8ab0; }
+.pf-readonly b { font-size: 12.5px; font-weight: 500; color: #dbe3ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-pwd-item .pf-input { margin-bottom: 12px; }
+.pf-pwd-actions { display: flex; justify-content: flex-end; margin: 12px 0 20px; }
+.pf-ghost { padding: 9px 16px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 13px; color: #cdd6f4; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); }
+.pf-ghost:hover:not(:disabled) { color: #fff; border-color: var(--cyan); }
+.pf-ghost:disabled { opacity: .6; cursor: not-allowed; }
+.pf-save { padding: 9px 22px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: #04121f; border: 0; background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta)); box-shadow: 0 8px 22px rgba(138, 92, 255, .38); }
+.pf-save:disabled { opacity: .65; cursor: not-allowed; }
+.pf-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .1); }
+@media (max-width: 560px) { .pf-readonly { grid-template-columns: 1fr; } }
+
 .home {
   position: relative;
   z-index: 2;

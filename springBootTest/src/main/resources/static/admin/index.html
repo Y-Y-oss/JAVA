@@ -172,14 +172,11 @@
     margin-top: 8px; padding: 14px; border-radius: 10px; font-size: 13px; line-height: 1.7;
     background: rgba(7,11,28,.5); border: 1px solid rgba(159,176,216,.18); white-space: pre-wrap; word-break: break-word;
   }
+  /* 列表层（账号列表 / 账号明细）不铺开图片，照片只在「查看」详情弹窗里展示 */
   .modal .detail.av-photo-wrap { padding: 8px; white-space: normal; }
   .modal .detail.av-photo-wrap img {
     display: block; width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px;
     background: rgba(0,0,0,.35); cursor: zoom-in;
-  }
-  .arch-thumb {
-    width: 64px; height: 40px; object-fit: cover; border-radius: 6px;
-    border: 1px solid rgba(159,176,216,.25); cursor: zoom-in; display: block; background: rgba(0,0,0,.3);
   }
   .modal .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
   .modal .btn.cancel { background: none; border: 1px solid rgba(159,176,216,.3); color: var(--text-dim); }
@@ -267,43 +264,62 @@
     </div>
   </section>
 
-  <!-- ========== 时光档案模块 ========== -->
+  <!-- ========== 时光档案模块（按账号聚合，一个账号只出现一次） ========== -->
   <section id="mod-archives" style="display:none">
     <div class="stats">
       <div class="stat"><div class="num" id="a-total">-</div><div class="lbl">档案总数</div></div>
       <div class="stat g"><div class="num" id="a-public">-</div><div class="lbl">公开档案</div></div>
       <div class="stat m"><div class="num" id="a-private">-</div><div class="lbl">私密档案</div></div>
-      <div class="stat p"><div class="num" id="a-today">-</div><div class="lbl">今日新增</div></div>
+      <div class="stat p"><div class="num" id="a-accounts">-</div><div class="lbl">账号数</div></div>
     </div>
 
-    <div class="toolbar">
-      <input type="text" id="a-keyword" placeholder="搜索：标题 / 内容 / 标签" />
-      <select id="a-visibility">
-        <option value="">全部可见性</option>
-        <option value="1">公开</option>
-        <option value="0">仅自己</option>
-      </select>
-      <button class="btn" onclick="loadArchives(1)">查 询</button>
-      <button class="btn ghost" onclick="refreshArchives()">刷新</button>
+    <!-- 一级：账号列表，一个账号一行，不展示档案图片 -->
+    <div id="arch-account-view">
+      <div class="toolbar">
+        <input type="text" id="a-keyword" placeholder="搜索：账号名" onkeydown="if(event.key==='Enter')renderAccountsPage(1)" />
+        <button class="btn" onclick="renderAccountsPage(1)">查 询</button>
+        <button class="btn ghost" onclick="refreshArchives()">刷新</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>用户ID</th><th>账号</th><th>时光档案数</th><th>公开 / 私密</th>
+              <th>最近更新</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="acct-tbody"></tbody>
+        </table>
+        <div class="empty" id="empty-acct" style="display:none">没有匹配的账号</div>
+      </div>
+
+      <div class="pager">
+        <span id="page-arch-info">-</span>
+        <button class="btn ghost" id="pg-arch-prev" onclick="turnArchPage(-1)">上一页</button>
+        <button class="btn ghost" id="pg-arch-next" onclick="turnArchPage(1)">下一页</button>
+      </div>
     </div>
 
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th><th>所属用户</th><th>照片</th><th>标题</th><th>标签</th>
-            <th>内容</th><th>时光节点</th><th>可见性</th><th>更新时间</th><th>操作</th>
-          </tr>
-        </thead>
-        <tbody id="arch-tbody"></tbody>
-      </table>
-      <div class="empty" id="empty-arch" style="display:none">没有匹配的档案</div>
-    </div>
+    <!-- 二级：点开某个账号后展示档案明细；有照片的档案点「查看」才能看到照片 -->
+    <div id="arch-user-view" style="display:none">
+      <div class="toolbar">
+        <button class="btn ghost" onclick="backToAccounts()">← 返回账号列表</button>
+        <span id="arch-user-label" style="color:var(--text-dim);font-size:13px"></span>
+      </div>
 
-    <div class="pager">
-      <span id="page-arch-info">-</span>
-      <button class="btn ghost" id="pg-arch-prev" onclick="turnArchPage(-1)">上一页</button>
-      <button class="btn ghost" id="pg-arch-next" onclick="turnArchPage(1)">下一页</button>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>照片</th><th>标题</th><th>标签</th>
+              <th>内容</th><th>时光节点</th><th>可见性</th><th>更新时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="arch-tbody"></tbody>
+        </table>
+        <div class="empty" id="empty-arch" style="display:none">该账号暂无时光档案</div>
+      </div>
     </div>
   </section>
 </div>
@@ -344,6 +360,7 @@
     <div class="detail av-photo-wrap" id="av-photo-wrap" style="display:none">
       <img id="av-photo" src="" alt="档案照片" title="点击查看原图" onclick="if(this.src)window.open(this.src,'_blank')" />
     </div>
+    <div class="detail" id="av-photo-text" style="display:none">无照片</div>
     <span class="field-label">时光节点 / 标签 / 可见性</span>
     <div class="detail" id="av-meta"></div>
     <span class="field-label">内容</span>
@@ -403,9 +420,12 @@ var adminName = '';
 var userPage = 1, userSize = 10, userTotalPages = 1;
 var resetPwdId = null, deleteUserId = null;
 
-/* 档案模块分页 */
+/* 档案模块：按账号聚合 + 当前展开的账号 */
 var archPage = 1, archSize = 10, archTotalPages = 1;
-var archMap = {};        // id -> 行数据（含 username），查看/编辑时取用
+var archAll = [];          // 全量档案（分页拉齐）
+var accountRows = [];      // 按账号聚合后的行，一个账号一条
+var currentUserId = null; // 当前展开查看的账号
+var archMap = {};          // id -> 行数据（含 username），查看/编辑时取用
 var editArchId = null, deleteArchId = null;
 
 /* ================= 工具 ================= */
@@ -425,6 +445,12 @@ function esc(s) {
 function fmtTime(v) {
   if (!v) return null;
   return String(v).replace('T', ' ').replace(/\.\d+$/, '');
+}
+/** 属性值转义（title / data-* 等），避免内容里带引号破坏 HTML */
+function attr(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /* ================= 请求 ================= */
@@ -503,6 +529,8 @@ function switchTab(name) {
   document.getElementById('tab-archives').classList.toggle('active', !isUsers);
   document.getElementById('mod-users').style.display = isUsers ? 'block' : 'none';
   document.getElementById('mod-archives').style.display = isUsers ? 'none' : 'block';
+  // 每次进入「时光档案」都从账号列表开始
+  if (!isUsers) backToAccounts();
 }
 
 /* ================= 数据加载（总入口） ================= */
@@ -620,9 +648,11 @@ function confirmDeleteUser() {
 }
 
 /* ================= 时光档案模块 ================= */
+/* 后台按「账号」聚合：一个账号只出现一次，列表层只用「有照片 / —」文字标记；
+   点开账号后看档案明细，再点「查看」才在详情弹窗里展示照片大图 / 原图。 */
 function refreshArchives() {
   loadArchiveStats();
-  loadArchives(archPage);
+  loadAccounts(archPage);
 }
 function loadArchiveStats() {
   api('GET', '/api/admin/archives/stats').then(function (json) {
@@ -630,60 +660,132 @@ function loadArchiveStats() {
     document.getElementById('a-total').textContent = d.total;
     document.getElementById('a-public').textContent = d.publicArchives;
     document.getElementById('a-private').textContent = d.privateArchives;
-    document.getElementById('a-today').textContent = d.todayNew;
   }).catch(function (e) { toast(e.message, true); });
 }
-function loadArchives(page) {
+
+/** 分页拉齐全量档案（后端 size 上限 50），再按账号聚合 */
+function loadAccounts(page) {
   archPage = page || 1;
-  var keyword = document.getElementById('a-keyword').value.trim();
-  var visibility = document.getElementById('a-visibility').value;
-  var url = '/api/admin/archives?page=' + archPage + '&size=' + archSize;
-  if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
-  if (visibility !== '') url += '&visibility=' + visibility;
-
-  api('GET', url).then(function (json) {
+  api('GET', '/api/admin/archives?page=1&size=50').then(function (json) {
     var d = json.data;
-    archTotalPages = Math.max(1, Math.ceil(d.total / d.size));
-    if (archPage > archTotalPages) archPage = archTotalPages;
-
-    var tbody = document.getElementById('arch-tbody');
-    archMap = {};
-    var rows = (d.records || []).map(function (a) {
-      archMap[a.id] = a;
-      var visTag = a.visibility === 1
-        ? '<span class="tag on">公开</span>'
-        : '<span class="tag off">仅自己</span>';
-      return '<tr>'
-        + '<td class="dim">' + a.id + '</td>'
-        + '<td>' + esc(a.username) + '</td>'
-        + '<td>' + (a.cover
-            ? '<img class="arch-thumb" src="' + esc(a.cover) + '" onclick="viewArchive(' + a.id + ')" title="点击查看详情" />'
-            : '<span class="dim">—</span>')
-          + '</td>'
-        + '<td class="ellipsis" title="' + esc(a.title) + '">' + esc(a.title) + '</td>'
-        + '<td>' + esc(a.tag) + '</td>'
-        + '<td class="ellipsis dim" title="' + esc(a.content || '') + '">' + esc(a.content || '（无内容）') + '</td>'
-        + '<td class="dim">' + esc(a.archiveDate) + '</td>'
-        + '<td>' + visTag + '</td>'
-        + '<td class="dim">' + esc(fmtTime(a.updateTime)) + '</td>'
-        + '<td><div class="op">'
-        + '<button onclick="viewArchive(' + a.id + ')">查看</button>'
-        + '<button onclick="editArchive(' + a.id + ')">编辑</button>'
-        + '<button class="danger" onclick="openDeleteArchive(' + a.id + ')">删除</button>'
-        + '</div></td>'
-        + '</tr>';
+    var all = (d.records || []).slice();
+    var pages = Math.ceil(d.total / 50);
+    if (pages <= 1) { onAllArchives(all); return; }
+    var tasks = [];
+    for (var p = 2; p <= pages; p++) {
+      tasks.push(api('GET', '/api/admin/archives?page=' + p + '&size=50'));
+    }
+    return Promise.all(tasks).then(function (res) {
+      res.forEach(function (r) { all = all.concat(r.data.records || []); });
+      onAllArchives(all);
     });
-    tbody.innerHTML = rows.join('');
-    document.getElementById('empty-arch').style.display = rows.length ? 'none' : 'block';
-    document.getElementById('page-arch-info').textContent = '第 ' + archPage + ' / ' + archTotalPages + ' 页 · 共 ' + d.total + ' 条';
-    document.getElementById('pg-arch-prev').disabled = archPage <= 1;
-    document.getElementById('pg-arch-next').disabled = archPage >= archTotalPages;
   }).catch(function (e) { toast(e.message, true); });
+}
+
+function onAllArchives(all) {
+  archAll = all;
+  var map = {};
+  archAll.forEach(function (a) {
+    var uid = (a.userId !== undefined && a.userId !== null) ? a.userId : a.user_id;
+    if (uid === undefined || uid === null) uid = a.username;
+    if (!map[uid]) {
+      map[uid] = { userId: uid, username: a.username || ('用户#' + uid), total: 0, pub: 0, priv: 0, last: '' };
+    }
+    var g = map[uid];
+    g.total++;
+    if (a.visibility === 1) g.pub++; else g.priv++;
+    var t = fmtTime(a.updateTime) || '';
+    if (t > g.last) g.last = t;
+  });
+  accountRows = Object.keys(map).map(function (k) { return map[k]; })
+    .sort(function (x, y) { return String(y.last).localeCompare(String(x.last)); });
+
+  document.getElementById('a-accounts').textContent = accountRows.length;
+  renderAccounts();
+  // 编辑 / 删除后若停留在某个账号的详情视图，同步刷新该视图
+  if (currentUserId !== null) renderUserArchives();
+}
+
+/** 一级：账号列表，一个账号一行 */
+function renderAccounts() {
+  var kw = document.getElementById('a-keyword').value.trim().toLowerCase();
+  var filtered = accountRows.filter(function (g) {
+    return !kw || String(g.username).toLowerCase().indexOf(kw) >= 0;
+  });
+  archTotalPages = Math.max(1, Math.ceil(filtered.length / archSize));
+  if (archPage > archTotalPages) archPage = archTotalPages;
+  var start = (archPage - 1) * archSize;
+  var pageRows = filtered.slice(start, start + archSize);
+
+  document.getElementById('acct-tbody').innerHTML = pageRows.map(function (g) {
+    return '<tr>'
+      + '<td class="dim">' + esc(g.userId) + '</td>'
+      + '<td>' + esc(g.username) + '</td>'
+      + '<td>' + g.total + '</td>'
+      + '<td><span class="tag on">公开 ' + g.pub + '</span> <span class="tag off">私密 ' + g.priv + '</span></td>'
+      + '<td class="dim">' + esc(g.last) + '</td>'
+      + '<td><div class="op"><button data-uid="' + attr(g.userId) + '" onclick="openUserArchives(this.dataset.uid)">查看时光档案</button></div></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('empty-acct').style.display = pageRows.length ? 'none' : 'block';
+  document.getElementById('page-arch-info').textContent = '第 ' + archPage + ' / ' + archTotalPages + ' 页 · 共 ' + filtered.length + ' 个账号';
+  document.getElementById('pg-arch-prev').disabled = archPage <= 1;
+  document.getElementById('pg-arch-next').disabled = archPage >= archTotalPages;
+}
+function renderAccountsPage(page) {
+  archPage = page || 1;
+  renderAccounts();
 }
 function turnArchPage(delta) {
   var next = archPage + delta;
   if (next < 1 || next > archTotalPages) return;
-  loadArchives(next);
+  renderAccountsPage(next);
+}
+
+/** 点开某个账号：展示该账号的详细时光档案 */
+function openUserArchives(uid) {
+  currentUserId = uid;
+  var g = accountRows.filter(function (x) { return String(x.userId) === String(uid); })[0] || {};
+  document.getElementById('arch-account-view').style.display = 'none';
+  document.getElementById('arch-user-view').style.display = 'block';
+  document.getElementById('arch-user-label').textContent = '账号：' + (g.username || uid) + ' · 共 ' + (g.total || 0) + ' 条时光档案';
+  renderUserArchives();
+}
+function backToAccounts() {
+  currentUserId = null;
+  document.getElementById('arch-user-view').style.display = 'none';
+  document.getElementById('arch-account-view').style.display = 'block';
+}
+
+/** 二级：某个账号下的档案明细（仅用文字标记是否有照片，图片留给「查看」弹窗） */
+function renderUserArchives() {
+  var list = archAll.filter(function (a) {
+    var uid = (a.userId !== undefined && a.userId !== null) ? a.userId : a.user_id;
+    return String(uid) === String(currentUserId);
+  });
+  archMap = {};
+  document.getElementById('arch-tbody').innerHTML = list.map(function (a) {
+    archMap[a.id] = a;
+    var visTag = a.visibility === 1
+      ? '<span class="tag on">公开</span>'
+      : '<span class="tag off">仅自己</span>';
+    return '<tr>'
+      + '<td class="dim">' + a.id + '</td>'
+      + '<td class="dim">' + (a.cover ? '有照片' : '—') + '</td>'
+      + '<td class="ellipsis" title="' + attr(a.title) + '">' + esc(a.title) + '</td>'
+      + '<td>' + esc(a.tag) + '</td>'
+      + '<td class="ellipsis dim" title="' + attr(a.content) + '">' + esc(a.content || '（无内容）') + '</td>'
+      + '<td class="dim">' + esc(a.archiveDate) + '</td>'
+      + '<td>' + visTag + '</td>'
+      + '<td class="dim">' + esc(fmtTime(a.updateTime)) + '</td>'
+      + '<td><div class="op">'
+      + '<button onclick="viewArchive(' + a.id + ')">查看</button>'
+      + '<button onclick="editArchive(' + a.id + ')">编辑</button>'
+      + '<button class="danger" onclick="openDeleteArchive(' + a.id + ')">删除</button>'
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('empty-arch').style.display = list.length ? 'none' : 'block';
 }
 function viewArchive(id) {
   api('GET', '/api/admin/archives/' + id).then(function (json) {
@@ -691,17 +793,19 @@ function viewArchive(id) {
     document.getElementById('av-id').textContent = a.id;
     document.getElementById('av-user').textContent = (archMap[a.id] && archMap[a.id].username) || '-';
     document.getElementById('av-title').textContent = a.title || '-';
-    // 照片：有上传封面就显示，点击可看原图
+    // 照片：点开档案详情后才展示，可点击查看原图；无照片时用文字占位
     var photoWrap = document.getElementById('av-photo-wrap');
     var photo = document.getElementById('av-photo');
+    var photoText = document.getElementById('av-photo-text');
     if (a.cover) {
-      photo.src = a.cover.startsWith('http') ? a.cover : a.cover;
+      photo.src = a.cover;
       photoWrap.style.display = 'block';
-      photoWrap.previousElementSibling.style.display = 'block';
+      photoText.style.display = 'none';
     } else {
       photo.src = '';
       photoWrap.style.display = 'none';
-      photoWrap.previousElementSibling.style.display = 'none';
+      photoText.textContent = '无照片';
+      photoText.style.display = 'block';
     }
     var meta = '时光节点：' + (a.archiveDate || '-')
       + '　|　标签：' + (a.tag || '-')

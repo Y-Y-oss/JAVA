@@ -1,7 +1,7 @@
 /**
- * 用户资料接口（头像上传等）
+ * 用户资料接口（头像上传、修改昵称等）
  */
-import { uploadFile } from './request'
+import { uploadFile, put } from './request'
 
 /**
  * 上传头像（需登录）  POST /api/auth/avatar  (multipart/form-data)
@@ -11,4 +11,13 @@ import { uploadFile } from './request'
  */
 export function uploadAvatar(file) {
   return uploadFile('/auth/avatar', file)
+}
+
+/**
+ * 修改个人资料（当前后端只开放昵称）  PUT /api/auth/profile
+ * @param {string} nickname 昵称，1-50 位
+ * @returns { data: 更新后的用户资料 }
+ */
+export function updateProfile(nickname) {
+  return put('/auth/profile', { nickname })
 }

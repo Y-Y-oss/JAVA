@@ -59,3 +59,12 @@ export function profile() {
 export function sendCode(phone) {
   return get('/auth/send-code', { phone })
 }
+
+/**
+ * 修改密码  POST /api/auth/change-password
+ * @param {{oldPassword:string,newPassword:string,confirmPassword:string}} payload 新密码 6-20 位
+ * @returns 成功后后端会把 pwd_version +1，所有旧 token 立即失效，前端需引导重新登录
+ */
+export function changePassword(payload) {
+  return post('/auth/change-password', payload)
+}
