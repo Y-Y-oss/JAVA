@@ -19,7 +19,9 @@ async function poll() {
   if (!userRef || !userRef.value) { invites.value = []; return }
   try {
     const res = await fetchMyGames()
-    const list = (res.data && res.data.toAccept) || []
+    const d = res.data || {}
+    const list = d.toAccept || []
+    sent.value = d.waiting || []
     const ids = list.map(g => g.id).join(',')
     // 新邀请到来时自动展开面板并提醒一次
     if (ids && ids !== knownIds) {
@@ -51,6 +53,17 @@ async function decline(g) {
     invites.value = invites.value.filter(x => x.id !== g.id)
   } catch (err) {
     if (notify) notify('✗ ' + (err.message || '拒绝失败'))
+  }
+}
+
+/** 取消我发出的、还没被接受的邀请（双方均可拒） */
+async function cancelSent(g) {
+  try {
+    await declineGomoku(g.id)
+    sent.value = sent.value.filter(x => x.id !== g.id)
+    if (notify) notify('已取消发给 @' + (g.guestUsername || '好友') + ' 的对弈邀请')
+  } catch (err) {
+    if (notify) notify('✗ ' + (err.message || '取消失败'))
   }
 }
 
@@ -93,6 +106,15 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
         </div>
       </div>
 
+      <div v-if="sent.length" class="gi-sec">我发出的邀请（{{ sent.length }}）</div>
+      <div v-for="g in sent" :key="'s' + g.id" class="gi-invite gi-sent">
+        <p class="gi-name">等待 @{{ g.guestUsername }} 接受…</p>
+        <p class="gi-meta">你执{{ g.blackUserId === g.hostUserId ? '黑' : '白' }} · 对方接受后自动开局，也可取消</p>
+        <div class="gi-btns">
+          <button class="gi-no" @click="cancelSent(g)">取消邀请</button>
+        </div>
+      </div>
+
       <button class="gi-go" @click="goToGame">去邀请好友对弈 →</button>
     </div>
   </div>
@@ -112,6 +134,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .gi-sec { margin: 14px 0 8px; font-size: 11.5px; letter-spacing: 1px; color: var(--cyan); }
 .gi-empty { font-size: 12.5px; color: #9fb0d8; line-height: 1.7; padding: 8px 0; }
 .gi-invite { padding: 11px 12px; border-radius: 12px; margin-bottom: 8px; background: rgba(255, 72, 196, .1); border: 1px solid rgba(255, 72, 196, .3); }
+.gi-invite.gi-sent { background: rgba(45, 226, 230, .08); border-color: rgba(45, 226, 230, .3); }
 .gi-name { font-size: 13.5px; color: #eef2ff; font-weight: 600; }
 .gi-meta { font-size: 11.5px; color: #9fb0d8; margin: 4px 0 10px; }
 .gi-btns { display: flex; gap: 8px; justify-content: flex-end; }

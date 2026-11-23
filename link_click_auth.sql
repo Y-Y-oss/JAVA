@@ -11,7 +11,7 @@
  Target Server Version : 80039 (8.0.39)
  File Encoding         : 65001
 
- Date: 16/11/2026 09:51:11
+ Date: 23/11/2026 09:47:44
 */
 
 SET NAMES utf8mb4;
@@ -35,7 +35,7 @@ CREATE TABLE `lc_archive`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_lc_archive_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_archive_public`(`visibility` ASC, `update_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 10005 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-时光档案表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 10006 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-时光档案表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_archive
@@ -59,6 +59,7 @@ INSERT INTO `lc_archive` VALUES (10001, 2, 'b', NULL, '2026-11-06', '约定', '/
 INSERT INTO `lc_archive` VALUES (10002, 29, '上传测试档案', '验证照片上传与社区互动', NULL, NULL, '/uploads/archives/2949b4027ccd4d3ca1576c01e1df03ed.png', 1, '2026-11-12 14:13:30', '2026-11-12 14:13:30');
 INSERT INTO `lc_archive` VALUES (10003, 2, '1', NULL, '2026-11-12', '告白', '/uploads/archives/d89e47bf8138479cbc1eac2d3cdd8c74.jpg', 1, '2026-11-12 14:15:18', '2026-11-12 14:15:18');
 INSERT INTO `lc_archive` VALUES (10004, 1, '1', NULL, '2026-11-16', '私语', '/uploads/archives/d9e3217e20474638be3cab00e9910f29.jpg', 0, '2026-11-16 09:07:36', '2026-11-16 09:07:36');
+INSERT INTO `lc_archive` VALUES (10005, 37, '好困', '早八好困', '2026-11-23', '私语', '/uploads/archives/159650ba5fd64d0b9156e77165009a33.png', 0, '2026-11-23 09:47:14', '2026-11-23 09:47:14');
 
 -- ----------------------------
 -- Table structure for lc_archive_comment
@@ -92,7 +93,7 @@ CREATE TABLE `lc_archive_favorite`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_fav_archive_user`(`archive_id` ASC, `user_id` ASC) USING BTREE,
   INDEX `idx_fav_user`(`user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-档案收藏表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-档案收藏表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_archive_favorite
@@ -111,7 +112,7 @@ CREATE TABLE `lc_archive_like`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_like_archive_user`(`archive_id` ASC, `user_id` ASC) USING BTREE,
   INDEX `idx_like_user`(`user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-档案点赞表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-档案点赞表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_archive_like
@@ -196,7 +197,7 @@ CREATE TABLE `lc_friend`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_friend_pair`(`user_id` ASC, `friend_id` ASC) USING BTREE,
   INDEX `idx_friend_target`(`friend_id` ASC, `status` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-好友关系表（同意后双向各一行）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-好友关系表（同意后双向各一行）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_friend
@@ -210,6 +211,8 @@ INSERT INTO `lc_friend` VALUES (6, 33, 34, 1, '2026-11-16 09:14:19', '2026-11-16
 INSERT INTO `lc_friend` VALUES (7, 34, 33, 1, '2026-11-16 09:14:19', '2026-11-16 09:14:19');
 INSERT INTO `lc_friend` VALUES (8, 35, 36, 1, '2026-11-16 09:14:37', '2026-11-16 09:14:37');
 INSERT INTO `lc_friend` VALUES (9, 36, 35, 1, '2026-11-16 09:14:37', '2026-11-16 09:14:37');
+INSERT INTO `lc_friend` VALUES (10, 37, 2, 1, '2026-11-23 09:33:31', '2026-11-23 09:33:31');
+INSERT INTO `lc_friend` VALUES (11, 2, 37, 1, '2026-11-23 09:33:37', '2026-11-23 09:33:37');
 
 -- ----------------------------
 -- Table structure for lc_gomoku_game
@@ -233,13 +236,15 @@ CREATE TABLE `lc_gomoku_game`  (
   INDEX `idx_gomoku_black`(`black_user_id` ASC) USING BTREE,
   INDEX `idx_gomoku_white`(`white_user_id` ASC) USING BTREE,
   INDEX `idx_gomoku_guest`(`guest_user_id` ASC, `status` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-五子棋在线对局表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-五子棋在线对局表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_gomoku_game
 -- ----------------------------
 INSERT INTO `lc_gomoku_game` VALUES (2, 29, 30, 29, 30, 2, '111110000000000222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000', 1, 2, 4, 1, '2026-11-12 14:42:09', '2026-11-12 14:42:09');
 INSERT INTO `lc_gomoku_game` VALUES (3, 29, 30, 29, 30, 2, '111110000000000222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000', 1, 1, 4, 0, '2026-11-12 14:44:21', '2026-11-12 14:44:21');
+INSERT INTO `lc_gomoku_game` VALUES (5, 37, 2, 37, 2, 2, '000000000000000000000000000000000000000000000000000000000000000000000000000000000010200100000000001012000000000112120000000000102221000000000022100000000000020000000000000000000000000000000000000000000000000000000000000000000', 2, 2, 7, 10, '2026-11-23 09:33:49', '2026-11-23 09:33:49');
+INSERT INTO `lc_gomoku_game` VALUES (6, 2, 37, 2, 37, 2, '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000021000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000', 2, 2, 8, 6, '2026-11-23 09:43:44', '2026-11-23 09:43:44');
 
 -- ----------------------------
 -- Table structure for lc_login_log
@@ -260,7 +265,7 @@ CREATE TABLE `lc_login_log`  (
   INDEX `idx_lc_login_log_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_login_log_success`(`success` ASC) USING BTREE,
   INDEX `idx_lc_login_log_time`(`login_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 32 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-登录日志表（每次登录追加一条，永不覆盖）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 38 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-登录日志表（每次登录追加一条，永不覆盖）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_login_log
@@ -296,6 +301,12 @@ INSERT INTO `lc_login_log` VALUES (28, 2, 'xx', 'password', '192.168.68.14', 'Mo
 INSERT INTO `lc_login_log` VALUES (29, 3, 'admin', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-16 09:36:19', '2026-11-16 09:36:19');
 INSERT INTO `lc_login_log` VALUES (30, 3, 'admin', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-16 09:36:37', '2026-11-16 09:36:37');
 INSERT INTO `lc_login_log` VALUES (31, 3, 'admin', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-16 09:48:56', '2026-11-16 09:48:56');
+INSERT INTO `lc_login_log` VALUES (32, 2, 'xx', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 08:38:05', '2026-11-23 08:38:05');
+INSERT INTO `lc_login_log` VALUES (33, 37, '55', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 08:39:56', '2026-11-23 08:39:56');
+INSERT INTO `lc_login_log` VALUES (34, 2, 'xx', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 08:45:47', '2026-11-23 08:45:47');
+INSERT INTO `lc_login_log` VALUES (35, 2, 'xx', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 09:26:59', '2026-11-23 09:26:59');
+INSERT INTO `lc_login_log` VALUES (36, 37, '55', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 09:31:09', '2026-11-23 09:31:09');
+INSERT INTO `lc_login_log` VALUES (37, 37, '55', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-23 09:44:01', '2026-11-23 09:44:01');
 
 -- ----------------------------
 -- Table structure for lc_refresh_token
@@ -317,7 +328,7 @@ CREATE TABLE `lc_refresh_token`  (
   INDEX `idx_lc_refresh_token_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_family`(`family_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_expire`(`expires_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 28 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_refresh_token
@@ -343,6 +354,12 @@ INSERT INTO `lc_refresh_token` VALUES (18, 2, '89d55784f9cb9874cbd4606d20c348cdb
 INSERT INTO `lc_refresh_token` VALUES (19, 3, '4dd06316496f3c0d73811584dba21ffed255698129d8f8879557f6565433c7d3', 'ecbdbc30-6c88-4583-84ae-575ec71cb9df', '2026-12-01 09:36:19', 2, 'logout', NULL, '2026-11-16 09:36:18', '2026-11-16 09:40:17');
 INSERT INTO `lc_refresh_token` VALUES (20, 3, '57deac1b963dc3727a65ab550c224ee788a2068fc9a17b8d9e5be91f4b2b99d9', 'f4f22971-e23e-44b9-a17f-d741d079ca50', '2026-12-01 09:36:37', 2, 'logout', NULL, '2026-11-16 09:36:36', '2026-11-16 09:40:17');
 INSERT INTO `lc_refresh_token` VALUES (21, 3, '4d59ced264d9ce8b8d320c55648cace59b349c27602bfd842a80f0626c789b8d', '772fa5e2-370e-4048-9da3-379617b24306', '2026-12-01 09:48:56', 0, NULL, NULL, '2026-11-16 09:48:56', '2026-11-16 09:48:56');
+INSERT INTO `lc_refresh_token` VALUES (22, 2, '512cf5f0eefc0f1d200cddb2a8cf9a8c62009e4456fee27b41c08f639636b2a6', '1cc242bd-769a-4e3e-ba65-abc154b3f260', '2026-12-08 08:38:06', 2, 'logout', NULL, '2026-11-23 08:38:05', '2026-11-23 08:46:18');
+INSERT INTO `lc_refresh_token` VALUES (23, 37, 'a754d097126a2b91d0fd0dc5845071b0f402a3e7332c6d9c32d76320c8b8896c', 'e76052be-65b1-4a98-b098-4def3995a4e4', '2026-12-08 08:39:56', 2, 'logout', NULL, '2026-11-23 08:39:55', '2026-11-23 09:30:54');
+INSERT INTO `lc_refresh_token` VALUES (24, 2, '6ed5a72d2c0d9c0de61d8cf53e1a86b10fa6e24c1183cbc3da6429585025a941', '7b819d9b-874f-4157-90df-7658a8a61aaf', '2026-12-08 08:45:47', 2, 'logout', NULL, '2026-11-23 08:45:46', '2026-11-23 08:46:18');
+INSERT INTO `lc_refresh_token` VALUES (25, 2, '2ff500dacc4b2b9f35eb9e265f8621b689b02e04927211885a25e40177f5cf55', 'a7c14183-5ec2-424c-ad13-0ee646efb686', '2026-12-08 09:26:59', 0, NULL, NULL, '2026-11-23 09:26:59', '2026-11-23 09:26:59');
+INSERT INTO `lc_refresh_token` VALUES (26, 37, '4bd3faa9f85a4cdabb0fc4684a23f11ca50c43098131f2ef3d52da74ce8460d5', '7dfeed9f-d8b9-45da-89ee-9b664b8e9d7a', '2026-12-08 09:31:09', 2, 'logout', NULL, '2026-11-23 09:31:09', '2026-11-23 09:36:39');
+INSERT INTO `lc_refresh_token` VALUES (27, 37, '895dfa29f3268fe46294cf6a1fc6307474a88eeabfaa0f631d035dd13b15dfcd', 'e7b2f4d7-215b-44f7-b43b-2760a015b52c', '2026-12-08 09:44:01', 0, NULL, NULL, '2026-11-23 09:44:01', '2026-11-23 09:44:01');
 
 -- ----------------------------
 -- Table structure for lc_sms_code
@@ -387,16 +404,17 @@ CREATE TABLE `lc_user`  (
   UNIQUE INDEX `uk_lc_user_username`(`username` ASC) USING BTREE,
   UNIQUE INDEX `uk_lc_user_phone`(`phone` ASC) USING BTREE,
   INDEX `idx_lc_user_create_time`(`create_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 37 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-用户表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 38 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-用户表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_user
 -- ----------------------------
 INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '$2a$10$pIiOPkxyO09Di0eqw9yQXu/lmvNUyeNg0UBJgLiViy2fptsOvP4eS', 'tester01', '/uploads/avatars/ff8985bfaa074205a69e84f4b3546365.jpeg', 'user', 1, 2, '2026-11-16 09:21:22', '2026-10-09 14:33:27', '2026-11-16 09:21:21', 1);
-INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', '/uploads/avatars/d28efa700b564ccd841bb677d436d3fb.jpeg', 'admin', 1, 1, '2026-11-16 09:27:47', '2026-10-28 16:25:05', '2026-11-16 09:27:46', 0);
+INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', '/uploads/avatars/d28efa700b564ccd841bb677d436d3fb.jpeg', 'admin', 1, 1, '2026-11-23 09:26:59', '2026-10-28 16:25:05', '2026-11-23 09:26:59', 0);
 INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', '/uploads/avatars/09953a16f3dd4064aa2d72ac4011f946.jpeg', 'admin', 1, 1, '2026-11-16 09:48:56', '2026-10-28 16:56:11', '2026-11-16 09:48:56', 0);
 INSERT INTO `lc_user` VALUES (4, 'cc', NULL, '$2a$10$8iFeImcuRP32nl23AHR64OKxUcJ.mQzz2LvvzjvDKWjarLm.Dg1bu', 'cc', '/uploads/avatars/b962b99c0a644439a5e8cc9e2f7bf4c2.jpeg', 'user', 1, 1, '2026-11-16 09:01:36', '2026-10-28 23:10:05', '2026-11-16 09:01:36', 1);
 INSERT INTO `lc_user` VALUES (29, 'upload_test_01', NULL, '$2a$10$JlBIqQwV7nILWT6H.RqA5O6LsOxX8THSbfj6U03KEjm8mEY5IVOCS', 'upload_test_01', '/uploads/avatars/a1a72b556a4449e680964674717a3dc5.png', 'user', 1, 1, '2026-11-12 15:05:47', '2026-11-12 13:54:48', '2026-11-12 15:05:47', 1);
 INSERT INTO `lc_user` VALUES (30, 'upload_test_02', NULL, '$2a$10$u.OZ4wuThurQig1JetAtEumRlNEH065seGePQuIyjamsjvDtj3glW', 'upload_test_02', NULL, 'user', 1, 1, '2026-11-12 14:39:14', '2026-11-12 14:39:01', '2026-11-12 14:39:14', 1);
+INSERT INTO `lc_user` VALUES (37, '55', NULL, '$2a$10$xVg4PjBJ3VYeYcMTWPy9TOwmKNXdd/D35oYga9X8yPBGCM5vXlij2', '55', '/uploads/avatars/d1cb00d640b646d2881eb7933848d614.png', 'user', 1, 1, '2026-11-23 09:44:01', '2026-11-23 08:39:45', '2026-11-23 09:44:01', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

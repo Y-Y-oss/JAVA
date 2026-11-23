@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +101,8 @@ public class GomokuController {
             throw new BusinessException("只能邀请已验证的好友对弈");
         }
 
-        // 同一对还没结束就别重复发
+        // 同一对还没结束就别重复发（过期的等待局先清理掉）
+        cleanExpiredInvites();
         Long dup = gameMapper.selectCount(new LambdaQueryWrapper<GomokuGame>()
                 .eq(GomokuGame::getHostUserId, me)
                 .eq(GomokuGame::getGuestUserId, friendId)
@@ -128,9 +130,20 @@ public class GomokuController {
 
     // ============================ 2. 我的对局列表 ============================
 
+    /** 等待中的邀请超过 10 分钟无人接受 → 视为过期自动清理，避免僵尸邀请卡界面 */
+    private static final int INVITE_EXPIRE_MINUTES = 10;
+
+    private void cleanExpiredInvites() {
+        LocalDateTime expire = LocalDateTime.now().minusMinutes(INVITE_EXPIRE_MINUTES);
+        gameMapper.delete(new LambdaQueryWrapper<GomokuGame>()
+                .eq(GomokuGame::getStatus, STATUS_WAITING)
+                .lt(GomokuGame::getCreateTime, expire));
+    }
+
     @GetMapping("/my")
     public R<Map<String, Object>> my(@RequestHeader(value = "Authorization", required = false) String authorization) {
         Long me = requireUserId(authorization);
+        cleanExpiredInvites();
         List<Map<String, Object>> all = gameMapper.selectMyGames(me).stream()
                 .map(this::camelKeys)
                 .collect(Collectors.toList());

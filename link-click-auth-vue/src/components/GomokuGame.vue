@@ -153,6 +153,21 @@ async function doDeclineInvite(g) {
   }
 }
 
+/** 邀请人取消还没被接受的邀请（后端 decline 双方未开始时均可调） */
+async function cancelWaiting() {
+  const g = currentGame.value
+  if (!g || g.status !== 0) return
+  try {
+    await declineGomoku(g.id)
+    currentGame.value = null
+    lastSyncedBoard = ''
+    reset()
+    if (notify) notify('已取消对弈邀请')
+  } catch (err) {
+    if (notify) notify('✗ ' + (err.message || '取消失败'))
+  }
+}
+
 /** 切入对弈中的画面 */
 function enterPlaying(game) {
   currentGame.value = game
@@ -220,9 +235,11 @@ async function pollOnce() {
       statusText.value = '邀请已发送，等待 @' + currentOpponentName.value + ' 接受…'
       draw()
     } else if (!active && !waiting && currentGame.value && currentGame.value.status === 0) {
-      // 等待中的局消失了（对方拒绝/被清理）→ 回到准备界面
+      // 等待中的局消失了（对方拒绝/取消）→ 回到准备界面并提示
       currentGame.value = null
+      lastSyncedBoard = ''
       reset()
+      if (notify) notify('对方已拒绝或取消了这次对弈邀请')
     }
   } catch (_) { /* 网络抖动忽略本轮 */ }
 }
@@ -515,7 +532,7 @@ onBeforeUnmount(() => { stopNetPolling() })
     </div>
     <div class="canvas-wrap">
       <canvas ref="canvasRef" :width="SIZE * CELL + PAD * 2" :height="SIZE * CELL + PAD * 2"
-        class="g-canvas" :class="{ 'g-wait': mode === 'net' && !isMyTurn }" @click="onBoardClick"></canvas>
+        class="g-canvas" @click="onBoardClick"></canvas>
       <div v-if="gameOver && mode !== 'net'" class="result-overlay" :class="winnerClass" @click="reset">
         <div class="r-emoji">{{ winnerEmoji }}</div>
         <div class="r-title">{{ winnerText }}</div>
@@ -530,8 +547,14 @@ onBeforeUnmount(() => { stopNetPolling() })
       </div>
     </div>
 
+    <!-- 网络对弈：等待对方接受（邀请人可随时取消，不必干等） -->
+    <div v-if="mode === 'net' && currentGame && currentGame.status === 0 && !gameOver" class="net-waiting">
+      <span class="net-vs">⏳ 已向 @{{ currentOpponentName }} 发出邀请，等待接受…（对方也可拒绝）</span>
+      <button class="f-mini no" @click="cancelWaiting">取消邀请</button>
+    </div>
+
     <!-- 网络对弈：准备面板（选好友 + 执子颜色） -->
-    <div v-if="mode === 'net' && (!currentGame || currentGame.winner !== 0)" class="net-setup">
+    <div v-if="mode === 'net' && !currentGame" class="net-setup">
       <div class="ns-row">
         <label class="ns-label">对手</label>
         <select v-model="inviteFriendId" class="ns-select">
@@ -601,7 +624,6 @@ onBeforeUnmount(() => { stopNetPolling() })
   width: 426px; max-width: 100%; height: auto; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .12);
   background: #e9d9b8; touch-action: none; cursor: pointer; display: block;
 }
-.g-canvas.g-wait { cursor: wait; opacity: .92; }
 .canvas-wrap { position: relative; line-height: 0; }
 .result-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -668,5 +690,6 @@ onBeforeUnmount(() => { stopNetPolling() })
 .f-mini.no { color: #cdd6f4; background: transparent; }
 .f-mini.no:hover { color: #ff8aa8; border-color: var(--magenta); }
 .net-ops { width: 100%; display: flex; align-items: center; gap: 10px; }
+.net-waiting { width: 100%; display: flex; align-items: center; gap: 10px; }
 .net-vs { flex: 1; font-size: 12.5px; color: #9fb0d8; }
 </style>

@@ -5,6 +5,7 @@ import RegisterForm from './components/RegisterForm.vue'
 import { profile, logout } from './api/auth'
 import { loadSession, clearSession, getAccessToken } from './api/session'
 import { setTokenProvider } from './api/request'
+import GomokuInvite from './components/GomokuInvite.vue'
 
 // request 层每次请求都会问这里要 token，实现 Authorization 头的自动携带
 setTokenProvider(getAccessToken)
@@ -80,7 +81,7 @@ const particles = Array.from({ length: 34 }, (_, i) => ({
 
 <template>
   <div class="bg">
-    <img class="bg-img" src="/bg.png" alt="" />
+    <img class="bg-img" src="/bg.webp?v=20261123" alt="" />
     <div class="bg-tint"></div>
     <div class="bg-grain"></div>
     <div class="leak"></div>
@@ -134,6 +135,9 @@ const particles = Array.from({ length: 34 }, (_, i) => ({
 
   <!-- 已登录：渲染首页（router-view）。登录成功后自动进入这里 -->
   <router-view v-else-if="sessionReady && currentUser" />
+
+  <!-- 全局五子棋对弈邀请面板（已登录时显示，任何页面可收/发邀请） -->
+  <GomokuInvite v-if="sessionReady && currentUser" />
 
   <div class="toast" :class="{ show: toastVisible }">{{ toastMsg }}</div>
 </template>
