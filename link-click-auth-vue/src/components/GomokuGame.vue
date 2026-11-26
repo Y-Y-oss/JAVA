@@ -57,8 +57,268 @@ let ctx = null
 let board = []
 let current = BLACK
 let aiThinking = false
+let aiTimer = null
 let over = false
 let lastMove = null
+
+/* ========================= 落子 / 胜利 视觉特效 ========================= */
+/* 纯 Canvas + CSS 动画，不改动任何对弈逻辑；人机 / 双人 / 联机三种模式通用 */
+/* 星尘 + 能量碎片：持续运动的舞台粒子（CSS 驱动，无限循环） */
+const stardust = Array.from({ length: 34 }, (_, i) => ({
+  left: (i * 29 + Math.random() * 40) % 100,
+  top: (i * 17 + Math.random() * 60) % 100,
+  size: 1.5 + Math.random() * 2.8,
+  dur: (1.4 + Math.random() * 2).toFixed(2),
+  delay: (Math.random() * 2.5).toFixed(2),
+  color: ['#7af5f7', '#ffffff', '#ff8ad8', '#ffd166'][i % 4]
+}))
+const shards = Array.from({ length: 26 }, (_, i) => ({
+  left: (i * 41 + Math.random() * 30) % 100,
+  w: 2 + Math.random() * 3,
+  h: 12 + Math.random() * 22,
+  color: ['#2de2e6', '#7af5f7', '#8a5cff', '#ff48c4', '#ffd166', '#ffffff'][i % 6],
+  delay: (Math.random() * 3.5).toFixed(2),
+  dur: (2.6 + Math.random() * 2.2).toFixed(2)
+}))
+function starStyle(s) {
+  return {
+    left: s.left + '%', top: s.top + '%', width: s.size + 'px', height: s.size + 'px',
+    background: s.color, boxShadow: `0 0 8px 2px ${s.color}`,
+    '--dur': s.dur + 's', '--delay': s.delay + 's'
+  }
+}
+function shardStyle(c) {
+  return {
+    left: c.left + '%', width: c.w + 'px', height: c.h + 'px',
+    background: c.color, color: c.color,
+    '--dur': c.dur + 's', '--delay': c.delay + 's'
+  }
+}
+
+let fxRaf = null
+let ripples = []      // 落子 / 胜利光环
+let sparks = []       // 迸发粒子
+let winLine = []      // 五连坐标
+let winBorn = 0
+let dropAnim = null   // 最后一手的弹入动画
+
+const easeOutBack = (t) => {
+  const c1 = 1.70158, c3 = c1 + 1
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+}
+function fxColor(color) { return color === BLACK ? '#2de2e6' : '#ff48c4' }
+
+function spawnDrop(x, y, color) {
+  const now = performance.now()
+  const cx = PAD + x * CELL, cy = PAD + y * CELL
+  dropAnim = { x, y, born: now }
+  ripples.push({ x: cx, y: cy, color: fxColor(color), born: now })
+  for (let i = 0; i < 14; i++) {
+    const a = (Math.PI * 2 * i) / 14 + Math.random() * .3
+    const sp = 1.4 + Math.random() * 2.6
+    sparks.push({
+      x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      color: i % 2 ? fxColor(color) : '#ffffff', born: now, life: 1
+    })
+  }
+  ensureFxLoop()
+}
+
+function spawnWinBurst(line, color) {
+  const now = performance.now()
+  winBorn = now
+  line.forEach((p, idx) => {
+    const born = now + idx * 110
+    const cx = PAD + p.x * CELL, cy = PAD + p.y * CELL
+    ripples.push({ x: cx, y: cy, color: '#2de2e6', born, big: true })
+    ripples.push({ x: cx, y: cy, color: '#ff48c4', born: born + 90, big: true })
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 1.2 + Math.random() * 4.5
+      sparks.push({
+        x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.2,
+        color: ['#ffd166', '#ff48c4', '#2de2e6', '#7af5f7', '#ffffff'][i % 5],
+        born, life: 2.2
+      })
+    }
+  })
+  ensureFxLoop()
+}
+
+function hasActiveFx(now) {
+  if (winLine.length) return true // 胜线持续流光，直到重开
+  if (dropAnim && now - dropAnim.born < 300) return true
+  if (ripples.some((r) => now - r.born < (r.big ? 1100 : 620))) return true
+  if (sparks.some((s) => (now - s.born) / 1000 < s.life * .62)) return true
+  return false
+}
+
+function ensureFxLoop() {
+  if (fxRaf) return
+  fxRaf = requestAnimationFrame((ts) => {
+    fxRaf = null
+    draw(ts)
+    if (hasActiveFx(ts || performance.now())) ensureFxLoop()
+  })
+}
+
+function drawEffects(now) {
+  ripples = ripples.filter((r) => now - r.born < (r.big ? 1100 : 620))
+  for (const r of ripples) {
+    const dur = r.big ? 1100 : 620
+    const t = (now - r.born) / dur
+    if (t < 0 || t > 1) continue
+    ctx.save()
+    ctx.globalAlpha = (1 - t) * .85
+    ctx.strokeStyle = r.color
+    ctx.lineWidth = (r.big ? 3.5 : 2.5) * (1 - t * .6)
+    ctx.shadowColor = r.color
+    ctx.shadowBlur = 14
+    ctx.beginPath()
+    ctx.arc(r.x, r.y, (r.big ? CELL * 1.9 : CELL * 1.15) * t + 3, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  sparks = sparks.filter((s) => (now - s.born) / 1000 < s.life * .62)
+  for (const s of sparks) {
+    const age = (now - s.born) / 1000
+    const t = age / (s.life * .62)
+    if (t < 0 || t > 1) continue
+    const x = s.x + s.vx * age * 60
+    const y = s.y + s.vy * age * 60 + 30 * age * age
+    ctx.save()
+    ctx.globalAlpha = 1 - t
+    ctx.fillStyle = s.color
+    ctx.shadowColor = s.color
+    ctx.shadowBlur = 8
+    ctx.beginPath(); ctx.arc(x, y, 2.4 * (1 - t * .5), 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
+  }
+}
+
+/** 胜利能量束：持续呼吸的光带 + 沿线奔跑的光点 + 放射光束 + 循环扫描线（全程动态） */
+function drawWinLine(now) {
+  const pts = winLine.map((p) => ({ x: PAD + p.x * CELL, y: PAD + p.y * CELL }))
+  const a = pts[0], b = pts[pts.length - 1]
+  const t = (now - winBorn) / 1000
+  const W = SIZE * CELL + PAD * 2
+
+  ctx.save()
+  // 1. 底层青色宽光带（呼吸）
+  const pulse = .55 + .45 * Math.sin(t * 4)
+  ctx.globalAlpha = .3 + .25 * pulse
+  ctx.strokeStyle = '#2de2e6'
+  ctx.lineWidth = 20 + pulse * 8
+  ctx.lineCap = 'round'
+  ctx.shadowColor = '#2de2e6'
+  ctx.shadowBlur = 34
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
+  // 2. 品红中层
+  ctx.globalAlpha = .8
+  ctx.strokeStyle = '#ff48c4'
+  ctx.lineWidth = 8
+  ctx.shadowColor = '#ff48c4'
+  ctx.shadowBlur = 20
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
+  // 3. 白亮核心
+  ctx.globalAlpha = 1
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = 2.5
+  ctx.shadowColor = '#ffffff'
+  ctx.shadowBlur = 12
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke()
+  // 4. 沿线循环奔跑的光点
+  for (let k = 0; k < 6; k++) {
+    const p = (t * .55 + k / 6) % 1
+    const x = a.x + (b.x - a.x) * p, y = a.y + (b.y - a.y) * p
+    ctx.fillStyle = k % 2 ? '#ffd166' : '#ffffff'
+    ctx.shadowColor = ctx.fillStyle
+    ctx.shadowBlur = 16
+    ctx.beginPath(); ctx.arc(x, y, 3.4, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.restore()
+
+  // 五连棋子：依次点亮的能量环 + 脉冲光晕
+  pts.forEach((p, i) => {
+    const local = t - i * .11
+    ctx.save()
+    ctx.strokeStyle = `rgba(255,209,102,${.5 + .4 * Math.sin(t * 6 + i)})`
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = '#ffd166'
+    ctx.shadowBlur = 20
+    ctx.beginPath(); ctx.arc(p.x, p.y, CELL / 2 + 5 + Math.sin(t * 5 + i) * 2, 0, Math.PI * 2); ctx.stroke()
+    if (local >= 0 && local < .7) {
+      const bt = local / .7
+      ctx.globalAlpha = 1 - bt
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 3
+      ctx.beginPath(); ctx.arc(p.x, p.y, CELL * .4 + bt * CELL * 1.5, 0, Math.PI * 2); ctx.stroke()
+    }
+    ctx.restore()
+  })
+
+  // 胜利瞬间：旋转放射光束 + 中心闪光
+  if (t < 1.4) {
+    const ft = t / 1.4
+    ctx.save()
+    ctx.globalAlpha = (1 - ft) * .5
+    ctx.translate(W / 2, W / 2)
+    ctx.rotate(t * .5)
+    for (let i = 0; i < 16; i++) {
+      ctx.rotate(Math.PI * 2 / 16)
+      const g = ctx.createLinearGradient(0, 0, W * .75, 0)
+      g.addColorStop(0, 'rgba(122,245,247,.55)')
+      g.addColorStop(1, 'rgba(122,245,247,0)')
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(W * .75, 0); ctx.lineTo(0, 7); ctx.closePath(); ctx.fill()
+    }
+    ctx.restore()
+    const flash = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, W * .6)
+    flash.addColorStop(0, `rgba(255,255,255,${(1 - ft) * .5})`)
+    flash.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = flash
+    ctx.fillRect(0, 0, W, W)
+  }
+
+  // 持续循环的扫描线
+  const scanY = ((t * 90) % (W + 80)) - 40
+  const sg = ctx.createLinearGradient(0, scanY - 24, 0, scanY + 24)
+  sg.addColorStop(0, 'rgba(45,226,230,0)')
+  sg.addColorStop(.5, 'rgba(45,226,230,.16)')
+  sg.addColorStop(1, 'rgba(45,226,230,0)')
+  ctx.fillStyle = sg
+  ctx.fillRect(0, scanY - 24, W, 48)
+}
+
+function drawLastMove(now) {
+  const cx = PAD + lastMove.x * CELL, cy = PAD + lastMove.y * CELL
+  const pulse = .5 + .5 * Math.sin(now / 260)
+  ctx.save()
+  ctx.strokeStyle = `rgba(45,226,230,${.45 + .35 * pulse})`
+  ctx.lineWidth = 2
+  ctx.shadowColor = '#2de2e6'
+  ctx.shadowBlur = 10
+  ctx.beginPath(); ctx.arc(cx, cy, 6 + pulse * 3, 0, Math.PI * 2); ctx.stroke()
+  ctx.restore()
+}
+
+/** 联机模式只拿到 winner，扫描棋盘找出五连坐标用于胜利特效 */
+function findAnyWinLine(color) {
+  const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]]
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+    if (board[y][x] !== color) continue
+    for (const [dx, dy] of dirs) {
+      const line = [{ x, y }]
+      for (let s = 1; s < 5; s++) {
+        const nx = x + dx * s, ny = y + dy * s
+        if (inBounds(nx, ny) && board[ny][nx] === color) line.push({ x: nx, y: ny })
+        else break
+      }
+      if (line.length >= 5) return line.slice(0, 5)
+    }
+  }
+  return []
+}
 
 /* ========================= 网络对弈状态 ========================= */
 const myFriends = ref([])            // 好友列表（邀请对象）
@@ -195,6 +455,10 @@ function syncNetStatusText(g) {
     over = true
     gameOver.value = true
     winner.value = g.winner
+    if ((g.winner === 1 || g.winner === 2) && !winLine.length) {
+      const line = findAnyWinLine(g.winner)
+      if (line.length) { winLine = line; spawnWinBurst(line, g.winner); ensureFxLoop() }
+    }
   }
 }
 
@@ -224,6 +488,9 @@ async function pollOnce() {
         board = boardFromServer(g.board)
         lastSyncedBoard = g.board
         lastMove = g.lastMoveX != null ? { x: g.lastMoveX, y: g.lastMoveY } : null
+        if (lastMove && board[lastMove.y] && board[lastMove.y][lastMove.x]) {
+          spawnDrop(lastMove.x, lastMove.y, board[lastMove.y][lastMove.x])
+        }
         syncNetStatusText(g)
         draw()
       }
@@ -265,6 +532,9 @@ async function netMove(x, y) {
     lastSyncedBoard = ng.board
     board = boardFromServer(ng.board)
     lastMove = ng.lastMoveX != null ? { x: ng.lastMoveX, y: ng.lastMoveY } : null
+    if (lastMove && board[lastMove.y] && board[lastMove.y][lastMove.x]) {
+      spawnDrop(lastMove.x, lastMove.y, board[lastMove.y][lastMove.x])
+    }
     syncNetStatusText(ng)
     draw()
   } catch (err) {
@@ -305,7 +575,14 @@ function reset() {
   gameOver.value = false
   winner.value = 0
   aiThinking = false
+  if (aiTimer) { clearTimeout(aiTimer); aiTimer = null }
   lastMove = null
+  winLine = []
+  ripples = []
+  sparks = []
+  dropAnim = null
+  winBorn = 0
+  if (fxRaf) { cancelAnimationFrame(fxRaf); fxRaf = null }
   if (mode.value === 'net') {
     statusText.value = currentGame.value && currentGame.value.status === 0
       ? '邀请已发送，等待 @' + currentOpponentName.value + ' 接受…'
@@ -330,11 +607,15 @@ function switchMode(m) {
   reset()
 }
 
-function draw() {
+function draw(ts) {
   if (!ctx) return
+  const now = ts || performance.now()
   const W = SIZE * CELL + PAD * 2
   const H = W
-  ctx.fillStyle = '#e9d9b8'
+  const wood = ctx.createLinearGradient(0, 0, W, H)
+  wood.addColorStop(0, '#f0e0c0')
+  wood.addColorStop(1, '#ddc9a3')
+  ctx.fillStyle = wood
   ctx.fillRect(0, 0, W, H)
   ctx.strokeStyle = 'rgba(80,60,30,0.55)'
   ctx.lineWidth = 1
@@ -348,68 +629,96 @@ function draw() {
   for (const sx of stars) for (const sy of stars) {
     ctx.beginPath(); ctx.arc(PAD + sx * CELL, PAD + sy * CELL, 3.2, 0, Math.PI * 2); ctx.fill()
   }
-  // 棋子
+  // 棋子（最后一手带弹入回弹）
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
-    if (board[y][x] !== EMPTY) drawStone(x, y, board[y][x])
+    if (board[y][x] === EMPTY) continue
+    let scale = 1
+    if (dropAnim && dropAnim.x === x && dropAnim.y === y) {
+      const t = Math.min(1, Math.max(0, (now - dropAnim.born) / 260))
+      scale = 1.65 - .65 * easeOutBack(t)
+    }
+    drawStone(x, y, board[y][x], scale)
   }
-  // 最后一手标记
-  if (lastMove && lastMove.x != null) {
-    ctx.strokeStyle = lastMove.color === WHITE ? '#2de2e6' : '#ff48c4'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(PAD + lastMove.x * CELL, PAD + lastMove.y * CELL, 4, 0, Math.PI * 2)
-    ctx.stroke()
-  }
+  // 胜利：五连流光线 + 脉冲光环
+  if (winLine.length) drawWinLine(now)
+  // 最后一手脉冲圈
+  if (lastMove && lastMove.x != null) drawLastMove(now)
+  // 落子涟漪 / 粒子
+  drawEffects(now)
+  if (hasActiveFx(now)) ensureFxLoop()
 }
 
-function drawStone(x, y, color) {
+function drawStone(x, y, color, scale = 1) {
   const cx = PAD + x * CELL
   const cy = PAD + y * CELL
-  const r = CELL / 2 - 2
+  const r = (CELL / 2 - 2) * scale
+  if (winLine.length && winLine.some((p) => p.x === x && p.y === y)) {
+    ctx.save()
+    ctx.shadowColor = '#ffd166'
+    ctx.shadowBlur = 22
+    ctx.fillStyle = 'rgba(255,209,102,.18)'
+    ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
+  }
   const g = ctx.createRadialGradient(cx - r / 3, cy - r / 3, r / 4, cx, cy, r)
   if (color === BLACK) { g.addColorStop(0, '#5a6478'); g.addColorStop(1, '#0b0e1a') }
   else { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c4ccdd') }
+  ctx.save()
+  ctx.shadowColor = 'rgba(0,0,0,.45)'
+  ctx.shadowBlur = 6
+  ctx.shadowOffsetY = 2
   ctx.fillStyle = g
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill()
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke()
+  ctx.restore()
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke()
+  // 高光点
+  ctx.fillStyle = color === BLACK ? 'rgba(122,245,247,.32)' : 'rgba(255,255,255,.75)'
+  ctx.beginPath(); ctx.arc(cx - r * .32, cy - r * .32, Math.max(1.2, r * .16), 0, Math.PI * 2); ctx.fill()
 }
 
+/** 返回五连坐标数组（用于胜利特效），未获胜返回 null */
 function checkWin(x, y, color) {
   const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]]
   for (const [dx, dy] of dirs) {
-    let count = 1
+    const line = [{ x, y }]
     for (let s = 1; s < 5; s++) {
       const nx = x + dx * s, ny = y + dy * s
-      if (inBounds(nx, ny) && board[ny][nx] === color) count++; else break
+      if (inBounds(nx, ny) && board[ny][nx] === color) line.push({ x: nx, y: ny })
+      else break
     }
     for (let s = 1; s < 5; s++) {
       const nx = x - dx * s, ny = y - dy * s
-      if (inBounds(nx, ny) && board[ny][nx] === color) count++; else break
+      if (inBounds(nx, ny) && board[ny][nx] === color) line.unshift({ x: nx, y: ny })
+      else break
     }
-    if (count >= 5) return true
+    if (line.length >= 5) return line.slice(0, 5)
   }
-  return false
+  return null
 }
 
 function place(x, y, color) {
   board[y][x] = color
   lastMove = { x, y }
-  draw()
-  if (checkWin(x, y, color)) {
+  spawnDrop(x, y, color)
+  const line = checkWin(x, y, color)
+  if (line) {
     over = true
     gameOver.value = true
     winner.value = color
+    winLine = line
+    spawnWinBurst(line, color)
     statusText.value = mode.value === 'ai'
       ? (color === BLACK ? '🎉 你赢了！' : 'AI 赢了，再来一局？')
       : (color === BLACK ? '⚫ 黑方获胜！' : '⚪ 白方获胜！')
-    draw()
+    ensureFxLoop()
     return true
   }
   // 平局
   let full = true
   for (let yy = 0; yy < SIZE; yy++) for (let xx = 0; xx < SIZE; xx++)
     if (board[yy][xx] === EMPTY) { full = false; break }
-  if (full) { over = true; gameOver.value = true; winner.value = 3; statusText.value = '平局！'; draw(); return true }
+  if (full) { over = true; gameOver.value = true; winner.value = 3; statusText.value = '平局！'; return true }
   return false
 }
 
@@ -516,7 +825,10 @@ onMounted(() => {
   ctx = canvasRef.value.getContext('2d')
   reset()
 })
-onBeforeUnmount(() => { stopNetPolling() })
+onBeforeUnmount(() => {
+  stopNetPolling()
+  if (fxRaf) { cancelAnimationFrame(fxRaf); fxRaf = null }
+})
 </script>
 
 <template>
@@ -534,16 +846,48 @@ onBeforeUnmount(() => { stopNetPolling() })
       <canvas ref="canvasRef" :width="SIZE * CELL + PAD * 2" :height="SIZE * CELL + PAD * 2"
         class="g-canvas" @click="onBoardClick"></canvas>
       <div v-if="gameOver && mode !== 'net'" class="result-overlay" :class="winnerClass" @click="reset">
-        <div class="r-emoji">{{ winnerEmoji }}</div>
-        <div class="r-title">{{ winnerText }}</div>
-        <div class="r-sub">{{ winnerSub }}</div>
-        <div class="r-btn">再来一局</div>
+        <div class="fx-stage" aria-hidden="true">
+          <div class="fx-grid"></div>
+          <div v-if="winnerClass === 'win'" class="fx-rays"></div>
+          <div class="fx-ring r1"></div>
+          <div class="fx-ring r2"></div>
+          <div class="fx-beam b1"></div>
+          <div class="fx-beam b2"></div>
+          <span v-for="(s, i) in stardust" :key="'s' + i" class="fx-star" :style="starStyle(s)"></span>
+          <template v-if="winnerClass === 'win'">
+            <span v-for="(c, i) in shards" :key="'c' + i" class="fx-shard" :style="shardStyle(c)"></span>
+          </template>
+        </div>
+        <div class="fx-content">
+          <div v-if="winnerClass === 'win'" class="fx-victory">VICTORY</div>
+          <div class="fx-emblem">{{ winnerEmoji }}</div>
+          <div class="fx-title">{{ winnerText }}</div>
+          <div class="fx-sub">{{ winnerSub }}</div>
+          <div v-if="winnerClass === 'win'" class="fx-badge-line"><i></i>五 子 连 珠 · 全 场 瞩 目<i></i></div>
+          <div class="fx-btn">再来一局</div>
+        </div>
       </div>
       <div v-else-if="gameOver && mode === 'net'" class="result-overlay" :class="winnerClass">
-        <div class="r-emoji">{{ winnerEmoji }}</div>
-        <div class="r-title">{{ winnerText }}</div>
-        <div class="r-sub">{{ winnerSub }}</div>
-        <div class="r-btn" @click="netBackToSetup">发起下一局</div>
+        <div class="fx-stage" aria-hidden="true">
+          <div class="fx-grid"></div>
+          <div v-if="winnerClass === 'win'" class="fx-rays"></div>
+          <div class="fx-ring r1"></div>
+          <div class="fx-ring r2"></div>
+          <div class="fx-beam b1"></div>
+          <div class="fx-beam b2"></div>
+          <span v-for="(s, i) in stardust" :key="'s' + i" class="fx-star" :style="starStyle(s)"></span>
+          <template v-if="winnerClass === 'win'">
+            <span v-for="(c, i) in shards" :key="'c' + i" class="fx-shard" :style="shardStyle(c)"></span>
+          </template>
+        </div>
+        <div class="fx-content">
+          <div v-if="winnerClass === 'win'" class="fx-victory">VICTORY</div>
+          <div class="fx-emblem">{{ winnerEmoji }}</div>
+          <div class="fx-title">{{ winnerText }}</div>
+          <div class="fx-sub">{{ winnerSub }}</div>
+          <div v-if="winnerClass === 'win'" class="fx-badge-line"><i></i>五 子 连 珠 · 全 场 瞩 目<i></i></div>
+          <div class="fx-btn" @click="netBackToSetup">发起下一局</div>
+        </div>
       </div>
     </div>
 
@@ -626,24 +970,13 @@ onBeforeUnmount(() => { stopNetPolling() })
 }
 .canvas-wrap { position: relative; line-height: 0; }
 .result-overlay {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px; border-radius: 12px;
-  background: rgba(8, 11, 32, .82); cursor: pointer; backdrop-filter: blur(3px);
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; cursor: pointer; overflow: hidden;
+  background: rgba(6, 9, 26, .5);
+  backdrop-filter: blur(2px) saturate(150%);
   animation: pop .25s ease-out;
 }
-@keyframes pop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
-.r-emoji { font-size: 46px; line-height: 1; }
-.r-title { font-size: 26px; font-weight: 800; letter-spacing: 1px; }
-.r-title, .r-sub { color: #fff; text-align: center; }
-.r-sub { font-size: 13px; color: #cdd6f4; }
-.result-overlay.win .r-title { color: #2de2e6; text-shadow: 0 0 16px rgba(45,226,230,.6); }
-.result-overlay.lose .r-title { color: #ff48c4; }
-.result-overlay.draw .r-title { color: #ffd166; }
-.r-btn {
-  margin-top: 6px; font-size: 15px; font-weight: 700; color: #04121f; padding: 10px 28px; border-radius: 12px;
-  background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta));
-  box-shadow: 0 8px 20px rgba(138, 92, 255, .4);
-}
+@keyframes pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
 .g-actions { display: flex; gap: 10px; }
 .g-btn {
   border: 0; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; color: #04121f;
@@ -692,4 +1025,135 @@ onBeforeUnmount(() => { stopNetPolling() })
 .net-ops { width: 100%; display: flex; align-items: center; gap: 10px; }
 .net-waiting { width: 100%; display: flex; align-items: center; gap: 10px; }
 .net-vs { flex: 1; font-size: 12.5px; color: #9fb0d8; }
+
+/* ===== 五子棋专属胜利舞台：赛博霓虹 · 全程动态 ===== */
+.result-overlay.lose { background: rgba(14, 6, 26, .58); }
+.result-overlay.draw { background: rgba(10, 10, 24, .58); }
+
+.fx-stage { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+
+.fx-grid {
+  position: absolute; left: -50%; right: -50%; bottom: -40%; height: 92%;
+  background-image:
+    linear-gradient(rgba(45, 226, 230, .16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 92, 255, .16) 1px, transparent 1px);
+  background-size: 34px 34px;
+  transform: perspective(260px) rotateX(62deg);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 55%, transparent);
+  animation: gridFlow 3.2s linear infinite;
+}
+@keyframes gridFlow { from { background-position: 0 0 } to { background-position: 0 34px } }
+
+.fx-rays {
+  position: absolute; top: 50%; left: 50%; width: 800px; height: 800px; margin: -400px 0 0 -400px;
+  background: repeating-conic-gradient(from 0deg, rgba(122, 245, 247, .16) 0deg 3deg, transparent 3deg 24deg);
+  -webkit-mask: radial-gradient(circle, #000 8%, transparent 62%);
+  mask: radial-gradient(circle, #000 8%, transparent 62%);
+  animation: raysSpin 12s linear infinite;
+}
+@keyframes raysSpin { to { transform: rotate(360deg) } }
+
+.fx-ring {
+  position: absolute; top: 50%; left: 50%; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, #2de2e6 60deg, #8a5cff 130deg, #ff48c4 200deg, transparent 260deg, transparent 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+  animation: ringSpin 4.5s linear infinite;
+  filter: drop-shadow(0 0 12px rgba(45, 226, 230, .7));
+}
+.fx-ring.r1 { width: 330px; height: 330px; margin: -165px 0 0 -165px; opacity: .85; }
+.fx-ring.r2 { width: 250px; height: 250px; margin: -125px 0 0 -125px; opacity: .6; animation-duration: 3s; animation-direction: reverse; }
+@keyframes ringSpin { to { transform: rotate(360deg) } }
+
+.fx-beam {
+  position: absolute; top: -60%; width: 90px; height: 220%;
+  background: linear-gradient(180deg, transparent, rgba(122, 245, 247, .28), rgba(255, 72, 196, .22), transparent);
+  filter: blur(7px);
+  animation: beamSweep 5.5s ease-in-out infinite;
+}
+.fx-beam.b1 { left: -20%; }
+.fx-beam.b2 { left: 60%; animation-delay: -2.7s;
+  background: linear-gradient(180deg, transparent, rgba(255, 72, 196, .24), rgba(138, 92, 255, .2), transparent); }
+@keyframes beamSweep {
+  0%, 100% { transform: translateX(-40px) rotate(22deg); opacity: .2 }
+  50% { transform: translateX(220px) rotate(22deg); opacity: .9 }
+}
+
+.fx-star { position: absolute; border-radius: 50%; animation: starTwinkle var(--dur) ease-in-out var(--delay) infinite alternate; }
+@keyframes starTwinkle {
+  0% { opacity: .1; transform: scale(.4) translateY(0) }
+  100% { opacity: 1; transform: scale(1.5) translateY(-14px) }
+}
+
+.fx-shard {
+  position: absolute; top: -30px; border-radius: 2px; opacity: 0;
+  box-shadow: 0 0 10px currentColor;
+  animation: shardFly var(--dur) linear var(--delay) infinite;
+}
+@keyframes shardFly {
+  0% { transform: translate3d(0, -30px, 0) rotate(0deg); opacity: 0 }
+  10% { opacity: 1 }
+  85% { opacity: 1 }
+  100% { transform: translate3d(60px, 500px, 0) rotate(560deg); opacity: 0 }
+}
+
+.fx-content { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.fx-victory {
+  position: absolute; top: -96px; left: 50%; transform: translateX(-50%);
+  font-size: 62px; font-weight: 900; letter-spacing: 12px; white-space: nowrap;
+  color: transparent; -webkit-text-stroke: 1.5px rgba(122, 245, 247, .32);
+  animation: victoryFloat 4s ease-in-out infinite;
+}
+@keyframes victoryFloat {
+  0%, 100% { opacity: .5; transform: translateX(-50%) translateY(0) }
+  50% { opacity: 1; transform: translateX(-50%) translateY(-8px) }
+}
+.fx-emblem {
+  font-size: 52px; line-height: 1;
+  filter: drop-shadow(0 0 20px rgba(255, 209, 102, .85));
+  animation: emblemIn .8s cubic-bezier(.2, 1.6, .4, 1) both, emblemFloat 2.8s ease-in-out .8s infinite;
+}
+@keyframes emblemIn { from { transform: scale(0) rotate(-60deg); opacity: 0 } to { transform: scale(1) rotate(0); opacity: 1 } }
+@keyframes emblemFloat { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-9px) } }
+
+.fx-title {
+  font-size: 34px; font-weight: 900; letter-spacing: 3px; line-height: 1.2; text-align: center;
+  background: linear-gradient(100deg, #2de2e6 0%, #fff 28%, #ff8ad8 50%, #fff 72%, #2de2e6 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px rgba(45, 226, 230, .75)) drop-shadow(0 0 26px rgba(255, 72, 196, .45));
+  animation: titleShine 3s linear infinite, titleIn .65s .1s cubic-bezier(.2, 1.3, .3, 1) both;
+}
+@keyframes titleShine { from { background-position: 200% 0 } to { background-position: -20% 0 } }
+@keyframes titleIn { from { opacity: 0; transform: scale(.7) translateY(18px) } to { opacity: 1; transform: none } }
+.result-overlay.lose .fx-title { background-image: linear-gradient(100deg, #ff48c4, #fff 45%, #8a5cff); }
+.result-overlay.draw .fx-title { background-image: linear-gradient(100deg, #ffd166, #fff 45%, #7af5f7); }
+
+.fx-sub { font-size: 13px; color: #cdd6f4; letter-spacing: 1px; text-shadow: 0 0 10px rgba(122, 245, 247, .5); animation: fadeUp .6s .25s both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+
+.fx-badge-line { display: flex; align-items: center; gap: 10px; font-size: 11.5px; letter-spacing: 3px; color: #ffd166;
+  animation: fadeUp .6s .35s both, glory 1.8s ease-in-out .9s infinite; }
+.fx-badge-line i { display: block; width: 42px; height: 1px; background: linear-gradient(90deg, transparent, #ffd166); box-shadow: 0 0 8px #ffd166; }
+.fx-badge-line i:last-child { background: linear-gradient(90deg, #ffd166, transparent); }
+@keyframes glory { 0%, 100% { opacity: .65 } 50% { opacity: 1; text-shadow: 0 0 16px rgba(255, 209, 102, .9) } }
+
+.fx-btn {
+  position: relative; overflow: hidden; margin-top: 12px; cursor: pointer;
+  font-size: 14.5px; font-weight: 800; letter-spacing: 2px; color: #04121f;
+  padding: 11px 32px; border-radius: 12px;
+  background: linear-gradient(120deg, #2de2e6, #8a5cff 55%, #ff48c4);
+  background-size: 180% 100%;
+  box-shadow: 0 0 22px rgba(45, 226, 230, .55), 0 10px 26px rgba(138, 92, 255, .4);
+  animation: btnShine 3s linear infinite, fadeUp .6s .4s both;
+}
+.fx-btn::after {
+  content: ""; position: absolute; top: 0; left: -120%; width: 55%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .75), transparent);
+  transform: skewX(-20deg); animation: btnSheen 2.6s ease-in-out infinite;
+}
+@keyframes btnShine { 0%, 100% { background-position: 0 0 } 50% { background-position: 100% 0 } }
+@keyframes btnSheen { 0% { left: -120% } 55%, 100% { left: 140% } }
+.fx-btn:hover { transform: scale(1.06); box-shadow: 0 0 34px rgba(255, 72, 196, .7); }
 </style>

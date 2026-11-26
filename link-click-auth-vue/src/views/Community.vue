@@ -4,8 +4,8 @@ import NavBar from '../components/NavBar.vue'
 import ArchiveCard from '../components/ArchiveCard.vue'
 import ArchiveDetail from '../components/ArchiveDetail.vue'
 import ArchiveForm from '../components/ArchiveForm.vue'
-import GameCenter from '../components/GameCenter.vue'
 import FriendsPanel from '../components/FriendsPanel.vue'
+import { useRouter } from 'vue-router'
 import { fetchPublicArchives, getArchive, updateArchive, deleteArchive } from '../api/home'
 import { toggleLike, toggleFavorite } from '../api/social'
 import { applyFriend, fetchFriends, fetchFriendRequests, fetchSentRequests } from '../api/friends'
@@ -15,45 +15,8 @@ const notify = inject('appNotify')
 // 当前登录用户（App.vue provide 注入），未登录时点赞/收藏只提示不请求
 const user = inject('appUser', null)
 
-// ===== B 站 · 时光代理人 相关视频 =====
-// 官方番剧与影像入口，点击在新标签页打开哔哩哔哩观看（链接均为 B 站真实地址）。
-const biliVideos = [
-  {
-    title: '时光代理人 · 官方番剧总览',
-    desc: '第一季 / 第二季 / 英都篇 / 第三季 全集',
-    cover: '/img/bili/overview.png',
-    url: 'https://www.bilibili.com/bangumi/media/md28230742/',
-    tag: '番剧总览'
-  },
-  {
-    title: '时光代理人 第一季',
-    desc: '2021 · 全12话 · 9.8 分',
-    cover: '/img/bili/s1.png',
-    url: 'https://bilibili.com/bangumi/play/ep411221',
-    tag: '第一季'
-  },
-  {
-    title: '时光代理人 第二季',
-    desc: '2023 · 全12话 · 热播完结',
-    cover: '/img/bili/s2.png',
-    url: 'https://www.bilibili.com/bangumi/play/ss39666',
-    tag: '第二季'
-  },
-  {
-    title: '时光代理人 第三季',
-    desc: '2026 · 英都新篇章 · 更新中',
-    cover: '/img/bili/s3.png',
-    url: 'https://www.bilibili.com/bangumi/play/ss105212',
-    tag: '第三季'
-  },
-  {
-    title: '更多二创 · 混剪 · 反应视频',
-    desc: '去 B 站搜「时光代理人」看全站相关',
-    cover: '/img/bili/extra.png',
-    url: 'https://search.bilibili.com/all?keyword=时光代理人',
-    tag: '社区二创'
-  }
-]
+// 娱乐 / 游戏专区已独立成页，社区只保留一个导航入口
+const router = useRouter()
 
 const TAGS = ['全部', ...KNOWN_TAGS]
 
@@ -293,6 +256,10 @@ onMounted(load)
           <span class="ov-num">👥</span>
           <span class="ov-label">我的好友</span>
         </div>
+        <div class="ov-card fun-card" @click="router.push('/fun')" title="去娱乐 / 游戏专区">
+          <span class="ov-num">🎉</span>
+          <span class="ov-label">娱乐专区</span>
+        </div>
         <div class="ov-tags">
           <span class="ov-tags-title">标签分布</span>
           <div class="ov-bars">
@@ -323,48 +290,14 @@ onMounted(load)
         </div>
       </section>
 
-      <!-- B 站 · 时光代理人 视频板块 -->
-      <section class="bili">
-        <div class="bili-head">
-          <span class="bili-badge">bilibili</span>
-          <div class="bili-hd-text">
-            <h2 class="bili-title">B 站 · 时光代理人</h2>
-            <p class="bili-sub">官方番剧与相关影像，点击直达哔哩哔哩观看</p>
-          </div>
+      <!-- 娱乐 / 游戏专区已独立成页，社区这里只留一个导航入口 -->
+      <section class="fun-entry" @click="router.push('/fun')">
+        <span class="fe-emoji">🎮</span>
+        <div class="fe-text">
+          <h2>娱乐专区 · 游戏专区</h2>
+          <p>8 款通关小游戏、番剧视频和 10 个摸鱼小玩法，已搬到独立的「娱乐」页面</p>
         </div>
-        <div class="bili-grid">
-          <a
-            v-for="v in biliVideos"
-            :key="v.url"
-            class="bili-card"
-            :href="v.url"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <div class="bili-cover" :style="{ backgroundImage: `url('${v.cover}')` }">
-              <span class="bili-play">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-              </span>
-              <span class="bili-tag">{{ v.tag }}</span>
-            </div>
-            <div class="bili-info">
-              <h3 class="bili-name">{{ v.title }}</h3>
-              <p class="bili-desc">{{ v.desc }}</p>
-            </div>
-          </a>
-        </div>
-      </section>
-
-      <!-- 社区小游戏：贪吃蛇 / 五子棋 -->
-      <section class="games">
-        <div class="games-head">
-          <span class="games-badge">小游戏</span>
-          <div class="games-hd-text">
-            <h2 class="games-title">社区小游戏</h2>
-            <p class="games-sub">逛累了？来一局放松一下，最高分会自动保存在本机</p>
-          </div>
-        </div>
-        <GameCenter />
+        <span class="fe-go">去逛逛 →</span>
       </section>
 
       <!-- 工具栏：搜索 + 标签筛选 + 排序 -->
@@ -446,13 +379,13 @@ onMounted(load)
 
 /* ===== 社区概览 ===== */
 .overview {
-  display: grid; grid-template-columns: 150px 150px 150px 1fr; gap: 16px; align-items: stretch;
+  display: grid; grid-template-columns: 140px 140px 140px 130px 1fr; gap: 16px; align-items: stretch;
   max-width: 980px; margin: 0 auto 26px; padding: 18px 20px;
   border-radius: 18px; background: linear-gradient(160deg, rgba(18, 22, 52, .7), rgba(12, 14, 38, .62));
   border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
 }
-.friend-card { cursor: pointer; transition: .22s; border-radius: 12px; }
-.friend-card:hover { background: rgba(45, 226, 230, .1); transform: translateY(-2px); }
+.friend-card, .fun-card { cursor: pointer; transition: .22s; border-radius: 12px; }
+.friend-card:hover, .fun-card:hover { background: rgba(45, 226, 230, .1); transform: translateY(-2px); }
 .ov-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   border-right: 1px solid rgba(255, 255, 255, .1); }
 .ov-card:last-of-type { border-right: 0; }
@@ -491,38 +424,24 @@ onMounted(load)
   box-shadow: 0 10px 26px rgba(138, 92, 255, .4); transition: .25s; }
 .feat-btn:hover { transform: translateY(-1px); }
 
-/* ===== B 站 视频 ===== */
-.bili { max-width: 980px; margin: 0 auto 34px; }
-.bili-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
-.bili-badge { flex-shrink: 0; font-size: 13px; font-weight: 700; letter-spacing: .5px; color: #fff;
-  background: #fb7299; padding: 7px 12px; border-radius: 10px; box-shadow: 0 8px 20px rgba(251, 114, 153, .42); }
-.bili-title { font-size: 20px; font-weight: 600; letter-spacing: 1px; color: #eef2ff; }
-.bili-sub { font-size: 13px; color: #9fb0d8; margin-top: 3px; }
-.bili-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.bili-card { display: block; text-decoration: none; color: inherit; position: relative; border-radius: 16px; overflow: hidden;
-  background: linear-gradient(160deg, rgba(18, 22, 52, .7), rgba(12, 14, 38, .62)); border: 1px solid rgba(255, 255, 255, .14);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, .4); transition: transform .3s, border-color .3s, box-shadow .3s; }
-.bili-card:hover { transform: translateY(-6px); border-color: #fb7299; box-shadow: 0 22px 52px rgba(251, 114, 153, .32); }
-.bili-cover { position: relative; height: 132px; background-size: cover; background-position: center; background-color: #0a0e27; }
-.bili-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 14, 39, .1) 0%, rgba(10, 14, 39, .72) 100%); }
-.bili-play { position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; z-index: 2; display: grid; place-items: center; border-radius: 50%; color: #fff;
-  background: rgba(251, 114, 153, .92); box-shadow: 0 6px 18px rgba(0, 0, 0, .4); transition: transform .3s; }
-.bili-card:hover .bili-play { transform: scale(1.1); }
-.bili-play svg { width: 22px; height: 22px; margin-left: 2px; }
-.bili-tag { position: absolute; left: 10px; bottom: 10px; z-index: 2; font-size: 11px; padding: 3px 10px; border-radius: 999px; color: #fff;
-  background: rgba(10, 14, 39, .6); border: 1px solid rgba(255, 255, 255, .28); backdrop-filter: blur(4px); }
-.bili-info { padding: 12px 13px 14px; }
-.bili-name { font-size: 14.5px; font-weight: 600; color: #eef2ff; line-height: 1.35; }
-.bili-desc { font-size: 12px; color: #9fb0d8; margin-top: 5px; line-height: 1.5; }
+/* ===== 娱乐专区入口：游戏与番剧视频已独立成页，社区只留导航 ===== */
+.fun-entry {
+  max-width: 980px; margin: 0 auto 34px; padding: 18px 22px; border-radius: 16px;
+  display: flex; align-items: center; gap: 16px; cursor: pointer;
+  background: linear-gradient(120deg, rgba(45, 226, 230, .12), rgba(138, 92, 255, .12) 55%, rgba(255, 72, 196, .12));
+  border: 1px solid rgba(45, 226, 230, .32); transition: .26s;
+}
+.fun-entry:hover { transform: translateY(-3px); border-color: var(--cyan); box-shadow: 0 18px 42px rgba(45, 226, 230, .2); }
+.fe-emoji { font-size: 34px; line-height: 1; }
+.fe-text { min-width: 0; }
+.fe-text h2 { font-size: 17px; font-weight: 700; color: #eef2ff; }
+.fe-text p { font-size: 12.5px; color: #9fb0d8; margin-top: 4px; line-height: 1.5; }
+.fe-go { margin-left: auto; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--cyan-soft); white-space: nowrap; }
 
-/* ===== 社区小游戏 ===== */
-.games { max-width: 980px; margin: 0 auto 34px; }
-.games-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
-.games-badge { flex-shrink: 0; font-size: 13px; font-weight: 700; letter-spacing: .5px; color: #04121f;
-  background: linear-gradient(135deg, var(--cyan), var(--magenta)); padding: 7px 12px; border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(45, 226, 230, .38); }
-.games-title { font-size: 20px; font-weight: 600; letter-spacing: 1px; color: #eef2ff; }
-.games-sub { font-size: 13px; color: #9fb0d8; margin-top: 3px; }
+@media (max-width: 560px) {
+  .fun-entry { flex-wrap: wrap; }
+  .fe-go { margin-left: 0; }
+}
 
 /* ===== 工具栏 ===== */
 .toolbar { max-width: 980px; margin: 0 auto 24px; display: flex; flex-direction: column; gap: 14px; }

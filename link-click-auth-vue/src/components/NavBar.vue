@@ -17,11 +17,12 @@ const navItems = [
   { key: 'timeline', label: '时间线', path: '/timeline', icon: 'M4 6h16M4 12h16M4 18h10' },
   { key: 'album', label: '相册', path: '/album', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 4-5 4 5' },
   { key: 'community', label: '社区', path: '/community', icon: 'M16 11a4 4 0 1 0-8 0M3 21v-2a5 5 0 0 1 10 0v2M14 21v-2a5 5 0 0 1 7 0v2' },
+  { key: 'fun', label: '娱乐', path: '/fun', icon: 'M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z' },
   { key: 'admin', label: '后台管理', href: '/admin/index.html', icon: 'M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 13h7v7H4z' }
 ]
 
-// 用路由 name 判断当前高亮（和 router 的 name 对应）
-const activeKey = computed(() => route.name)
+// 用路由 name 判断当前高亮；游戏专区是「娱乐」功能下的独立页面，进入 /games 同样高亮「娱乐」
+const activeKey = computed(() => (route.name === 'games' ? 'fun' : route.name))
 
 function go(path) {
   if (route.path !== path) router.push(path)
@@ -275,6 +276,10 @@ async function onAvatarChange(e) {
 .logout-btn svg { width: 18px; height: 18px; }
 .logout-btn:hover { color: #fff; border-color: var(--magenta); box-shadow: 0 0 14px rgba(255, 72, 196, .4); }
 
+@media (max-width: 1080px) {
+  .nav-links { gap: 3px; }
+  .nav-link { padding: 9px 11px; font-size: 13px; }
+}
 @media (max-width: 720px) {
   .nav-links { display: none; }
   .u-meta { display: none; }
