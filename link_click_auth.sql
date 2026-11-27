@@ -11,7 +11,7 @@
  Target Server Version : 80039 (8.0.39)
  File Encoding         : 65001
 
- Date: 26/11/2026 15:08:21
+ Date: 27/11/2026 15:12:43
 */
 
 SET NAMES utf8mb4;
@@ -276,7 +276,7 @@ CREATE TABLE `lc_login_log`  (
   INDEX `idx_lc_login_log_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_login_log_success`(`success` ASC) USING BTREE,
   INDEX `idx_lc_login_log_time`(`login_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 42 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-登录日志表（每次登录追加一条，永不覆盖）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 55 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-登录日志表（每次登录追加一条，永不覆盖）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_login_log
@@ -322,6 +322,19 @@ INSERT INTO `lc_login_log` VALUES (38, 2, 'xx', 'password', '192.168.68.14', 'Mo
 INSERT INTO `lc_login_log` VALUES (39, 37, '55', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-26 13:56:09', '2026-11-26 13:56:09');
 INSERT INTO `lc_login_log` VALUES (40, 2, 'xx', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-26 14:36:04', '2026-11-26 14:36:04');
 INSERT INTO `lc_login_log` VALUES (41, 37, '55', 'password', '192.168.68.14', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-26 14:37:26', '2026-11-26 14:37:26');
+INSERT INTO `lc_login_log` VALUES (42, 2, 'xx', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:00:33', '2026-11-27 14:00:33');
+INSERT INTO `lc_login_log` VALUES (43, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:18:07', '2026-11-27 14:18:07');
+INSERT INTO `lc_login_log` VALUES (44, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:18:40', '2026-11-27 14:18:40');
+INSERT INTO `lc_login_log` VALUES (45, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:19:14', '2026-11-27 14:19:14');
+INSERT INTO `lc_login_log` VALUES (46, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:20:14', '2026-11-27 14:20:14');
+INSERT INTO `lc_login_log` VALUES (47, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:22:10', '2026-11-27 14:22:10');
+INSERT INTO `lc_login_log` VALUES (48, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:28:37', '2026-11-27 14:28:37');
+INSERT INTO `lc_login_log` VALUES (49, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:30:07', '2026-11-27 14:30:07');
+INSERT INTO `lc_login_log` VALUES (50, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:31:15', '2026-11-27 14:31:15');
+INSERT INTO `lc_login_log` VALUES (51, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:34:30', '2026-11-27 14:34:30');
+INSERT INTO `lc_login_log` VALUES (52, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:36:24', '2026-11-27 14:36:24');
+INSERT INTO `lc_login_log` VALUES (53, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:37:23', '2026-11-27 14:37:23');
+INSERT INTO `lc_login_log` VALUES (54, 3, 'admin', 'password', '192.168.68.56', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.0.0 Safari/537.36', 1, NULL, '2026-11-27 14:38:31', '2026-11-27 14:38:31');
 
 -- ----------------------------
 -- Table structure for lc_refresh_token
@@ -343,7 +356,7 @@ CREATE TABLE `lc_refresh_token`  (
   INDEX `idx_lc_refresh_token_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_family`(`family_id` ASC) USING BTREE,
   INDEX `idx_lc_refresh_token_expire`(`expires_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 32 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 45 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '时光代理人-刷新令牌表（双令牌方案）' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lc_refresh_token
@@ -379,6 +392,19 @@ INSERT INTO `lc_refresh_token` VALUES (28, 2, '547485bca405f4f3ba5768717d39d2f66
 INSERT INTO `lc_refresh_token` VALUES (29, 37, '734370541b3948bc033bf0ad09980617e90e8a53824aa433faedf20dde52bce7', 'e776fce4-6e2f-4224-add4-fd839de9fee6', '2026-12-11 13:56:09', 2, 'logout', NULL, '2026-11-26 13:56:09', '2026-11-26 14:37:10');
 INSERT INTO `lc_refresh_token` VALUES (30, 2, '51d3efe677a9614ae245d2da99856fea6f555278bbe3279aa25cb9e5856924fc', 'f537663c-c7b2-4d6b-9f74-75fa61ac7db1', '2026-12-11 14:36:04', 0, NULL, NULL, '2026-11-26 14:36:03', '2026-11-26 14:36:03');
 INSERT INTO `lc_refresh_token` VALUES (31, 37, 'fb2aec7996f30c65f1f560aea2316df947249e7e75f21bda7e1f7e7166b70ab7', 'b618aa50-dca2-48bd-b795-84eec3ff3099', '2026-12-11 14:37:26', 0, NULL, NULL, '2026-11-26 14:37:25', '2026-11-26 14:37:25');
+INSERT INTO `lc_refresh_token` VALUES (32, 2, '4e9b22d470d357217e13e2dabb45861ec16ef3223f967261a2d2bf00a3813f9c', 'b27b70b8-da5b-4768-9188-a9c2fa38006a', '2026-12-12 14:00:33', 0, NULL, NULL, '2026-11-27 14:00:33', '2026-11-27 14:00:33');
+INSERT INTO `lc_refresh_token` VALUES (33, 3, '45bf9905ffefa55bc40adfc9ff3e20763ee8a1a1f900b797ed0f694fa60fde94', 'b43b473d-c2b8-4f2d-91fb-4419ccd41aec', '2026-12-12 14:18:07', 0, NULL, NULL, '2026-11-27 14:18:06', '2026-11-27 14:18:06');
+INSERT INTO `lc_refresh_token` VALUES (34, 3, '9d4ad319c690692efe30770c4735a0e276b88a4d4bae09e92d5a76504768bd73', 'b4025be7-b5f7-46c6-8fff-5c6a67d9548a', '2026-12-12 14:18:40', 0, NULL, NULL, '2026-11-27 14:18:40', '2026-11-27 14:18:40');
+INSERT INTO `lc_refresh_token` VALUES (35, 3, '94faf5ef57e6802b464849bdad48c5ff74accda82a8f000ae6ddb69520e0c76c', '24d5f2cf-d1a9-4e1f-b397-82680eace01f', '2026-12-12 14:19:14', 0, NULL, NULL, '2026-11-27 14:19:14', '2026-11-27 14:19:14');
+INSERT INTO `lc_refresh_token` VALUES (36, 3, '77d5e58a796ab69cb7b18b2463845dcb1ff1f367ed6b205c56aabeb818dfb138', 'a3e08f3c-1a4c-40ae-b1c8-88bba7c0b18b', '2026-12-12 14:20:14', 0, NULL, NULL, '2026-11-27 14:20:14', '2026-11-27 14:20:14');
+INSERT INTO `lc_refresh_token` VALUES (37, 3, 'ce062d9bf5440bf2143e3bddc2a6f6ab807819cba83a180e1fe326a82e1df8cc', '80a3ab2a-2c53-4bf8-9819-c2c7bb2fa0bc', '2026-12-12 14:22:10', 0, NULL, NULL, '2026-11-27 14:22:10', '2026-11-27 14:22:10');
+INSERT INTO `lc_refresh_token` VALUES (38, 3, 'd18f691a6e3d22f0816628e72c33656c1cd1e97585fd87e58ba9d0086c6b64b5', '63174d09-47c2-42c7-b711-9884719664fa', '2026-12-12 14:28:37', 0, NULL, NULL, '2026-11-27 14:28:37', '2026-11-27 14:28:37');
+INSERT INTO `lc_refresh_token` VALUES (39, 3, '62ae4126302f2a9c8a3b633fc93e1c0a8251f09ad6d712e5cc98727ea5ab7fb3', '390bc7c6-160e-4579-8ec6-711807baf8f2', '2026-12-12 14:30:07', 0, NULL, NULL, '2026-11-27 14:30:07', '2026-11-27 14:30:07');
+INSERT INTO `lc_refresh_token` VALUES (40, 3, 'b586ca31f4815c9c278dee63b4da703fcd5d3cf9b4cffe6747a54e622bb8ed66', '94edc7e7-ac52-44d6-894a-e5ef5b40481d', '2026-12-12 14:31:15', 0, NULL, NULL, '2026-11-27 14:31:14', '2026-11-27 14:31:14');
+INSERT INTO `lc_refresh_token` VALUES (41, 3, 'c43c327c412548b35270cabd903c3e5b324ef99c9a9ede1f8f655e962071ea2b', '109600f7-e4c9-4b3c-8ebf-d23065d0aa81', '2026-12-12 14:34:30', 0, NULL, NULL, '2026-11-27 14:34:30', '2026-11-27 14:34:30');
+INSERT INTO `lc_refresh_token` VALUES (42, 3, '5476e4b4d4389bee66cff22c5240de4ea476031ed88f940cc6f2f50b87751239', '43c22ca2-2b5c-48de-926e-b47d220e04f7', '2026-12-12 14:36:24', 0, NULL, NULL, '2026-11-27 14:36:24', '2026-11-27 14:36:24');
+INSERT INTO `lc_refresh_token` VALUES (43, 3, '9b011552a0e3d179ed394b21017ec7aecb910128e0b84007dcd1626c83d5b8ee', '9ae02716-8c86-4aa2-a25e-b1b4410e92da', '2026-12-12 14:37:23', 0, NULL, NULL, '2026-11-27 14:37:23', '2026-11-27 14:37:23');
+INSERT INTO `lc_refresh_token` VALUES (44, 3, '40b33e48e64bd0a2520ea0ba38d0610a496ea4bd3657dec73a33a4d2c2a55788', '6e5e73df-1a19-4ca0-9841-93846877d16b', '2026-12-12 14:38:31', 0, NULL, NULL, '2026-11-27 14:38:31', '2026-11-27 14:38:31');
 
 -- ----------------------------
 -- Table structure for lc_sms_code
@@ -429,8 +455,8 @@ CREATE TABLE `lc_user`  (
 -- Records of lc_user
 -- ----------------------------
 INSERT INTO `lc_user` VALUES (1, 'tester01', NULL, '$2a$10$pIiOPkxyO09Di0eqw9yQXu/lmvNUyeNg0UBJgLiViy2fptsOvP4eS', 'tester01', '/uploads/avatars/ff8985bfaa074205a69e84f4b3546365.jpeg', 'user', 1, 2, '2026-11-16 09:21:22', '2026-10-09 14:33:27', '2026-11-16 09:21:21', 1);
-INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', '/uploads/avatars/d28efa700b564ccd841bb677d436d3fb.jpeg', 'admin', 1, 1, '2026-11-26 14:36:04', '2026-10-28 16:25:05', '2026-11-26 14:36:03', 0);
-INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', '/uploads/avatars/09953a16f3dd4064aa2d72ac4011f946.jpeg', 'admin', 1, 1, '2026-11-16 09:48:56', '2026-10-28 16:56:11', '2026-11-16 09:48:56', 0);
+INSERT INTO `lc_user` VALUES (2, 'xx', NULL, '$2a$10$KRZ29HhOy1NxsamV46KRL.wlYwTILagT0qUnPCk2w3IIR0qE0N/he', 'xx', '/uploads/avatars/d28efa700b564ccd841bb677d436d3fb.jpeg', 'admin', 1, 1, '2026-11-27 14:00:33', '2026-10-28 16:25:05', '2026-11-27 14:00:33', 0);
+INSERT INTO `lc_user` VALUES (3, 'admin', NULL, '$2a$10$fZZ0GOgwjyUpD4bGVPhS8OZHaZp6DdRHMy9EeB8KGgXlrTjhuWP0i', '超级管理员', '/uploads/avatars/09953a16f3dd4064aa2d72ac4011f946.jpeg', 'admin', 1, 1, '2026-11-27 14:38:31', '2026-10-28 16:56:11', '2026-11-27 14:38:31', 0);
 INSERT INTO `lc_user` VALUES (4, 'cc', NULL, '$2a$10$8iFeImcuRP32nl23AHR64OKxUcJ.mQzz2LvvzjvDKWjarLm.Dg1bu', 'cc', '/uploads/avatars/b962b99c0a644439a5e8cc9e2f7bf4c2.jpeg', 'user', 1, 1, '2026-11-16 09:01:36', '2026-10-28 23:10:05', '2026-11-16 09:01:36', 1);
 INSERT INTO `lc_user` VALUES (29, 'upload_test_01', NULL, '$2a$10$JlBIqQwV7nILWT6H.RqA5O6LsOxX8THSbfj6U03KEjm8mEY5IVOCS', 'upload_test_01', '/uploads/avatars/a1a72b556a4449e680964674717a3dc5.png', 'user', 1, 1, '2026-11-12 15:05:47', '2026-11-12 13:54:48', '2026-11-12 15:05:47', 1);
 INSERT INTO `lc_user` VALUES (30, 'upload_test_02', NULL, '$2a$10$u.OZ4wuThurQig1JetAtEumRlNEH065seGePQuIyjamsjvDtj3glW', 'upload_test_02', NULL, 'user', 1, 1, '2026-11-12 14:39:14', '2026-11-12 14:39:01', '2026-11-12 14:39:14', 1);
