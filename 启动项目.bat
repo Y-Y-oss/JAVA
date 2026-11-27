@@ -24,6 +24,17 @@ set "SERVER__PORT="
 set "SERVER_PORT="
 call :log "[0] 已清理 SERVER__PORT / SERVER_PORT"
 
+rem ---- 0.5 自动获取本机局域网 IP（不写死，换网络也能用）----
+set "LAN_IP="
+for /f "tokens=4" %%a in ('route print 0.0.0.0 ^| findstr /R /C:"^ *0\.0\.0\.0  *0\.0\.0\.0  *[0-9][0-9.]*  *[0-9][0-9.]*  *[0-9][0-9]*$"') do if not defined LAN_IP set "LAN_IP=%%a"
+if not defined LAN_IP (
+  for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /C:"IPv4"') do if not defined LAN_IP (
+    for /f "tokens=* delims= " %%b in ("%%a") do set "LAN_IP=%%b"
+  )
+)
+if not defined LAN_IP set "LAN_IP=localhost"
+call :log "[0.5] 本机局域网 IP: !LAN_IP!"
+
 rem ---- 1. 定位 mysql 客户端 ----
 set "MYSQL_EXE="
 for /f "delims=" %%i in ('where mysql 2^>nul') do if not defined MYSQL_EXE set "MYSQL_EXE=%%i"
@@ -144,11 +155,11 @@ goto fail
 
 :ready
 call :log "=========================================="
-call :log "完成：前端 http://192.168.68.14:5173"
-call :log "      后端 http://192.168.68.14:8081"
+call :log "完成：前端 http://!LAN_IP!:5173"
+call :log "      后端 http://!LAN_IP!:8081"
 call :log "验证码答案在 springBootTest\log\xx.log"
 call :log "=========================================="
-start "" "http://192.168.68.14:5173"
+start "" "http://!LAN_IP!:5173"
 goto end
 
 :fail
