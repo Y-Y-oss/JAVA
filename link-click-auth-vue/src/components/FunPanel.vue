@@ -436,25 +436,74 @@ onBeforeUnmount(() => {
 <style scoped>
 .play-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 16px; }
 .play-card {
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 18px;
-  background: linear-gradient(160deg, rgba(18, 22, 52, .74), rgba(12, 14, 38, .66));
-  border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
+  --toy: #2de2e6; --toy-rgb: 45, 226, 230;
+  background: linear-gradient(160deg, rgba(var(--toy-rgb), .1), rgba(12, 14, 38, .72) 62%);
+  border: 1px solid rgba(var(--toy-rgb), .26); box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
   transition: border-color .28s, transform .28s, box-shadow .28s;
 }
-.play-card:hover { border-color: rgba(45, 226, 230, .5); transform: translateY(-3px); box-shadow: 0 20px 46px rgba(45, 226, 230, .16); }
+.play-card > * { position: relative; z-index: 1; }
+.play-card::before {
+  content: ''; position: absolute; z-index: 0; right: -24px; top: -24px;
+  width: 140px; height: 140px; border-radius: 50%; opacity: .5;
+  background: radial-gradient(circle, rgba(var(--toy-rgb), .32), transparent 68%);
+  animation: toyFloat 6s ease-in-out infinite alternate;
+}
+@keyframes toyFloat { 0% { transform: translate(0, 0) scale(.9) } 100% { transform: translate(-18px, 22px) scale(1.15) } }
+.play-card:hover {
+  border-color: rgba(var(--toy-rgb), .75); transform: translateY(-3px);
+  box-shadow: 0 20px 46px rgba(var(--toy-rgb), .22), inset 0 0 28px rgba(var(--toy-rgb), .07);
+}
 .play-card.wide { grid-column: span 2; }
 @media (max-width: 760px) { .play-card.wide { grid-column: span 1; } }
+
+/* 10 个小玩具：各自配色 + 不同纹理 */
+.play-card:nth-child(1) { --toy: #b39cff; --toy-rgb: 179, 156, 255; }
+.play-card:nth-child(2) { --toy: #ffd166; --toy-rgb: 255, 209, 102; }
+.play-card:nth-child(3) { --toy: #ff8ad8; --toy-rgb: 255, 138, 216; }
+.play-card:nth-child(4) { --toy: #2ff5c8; --toy-rgb: 47, 245, 200; }
+.play-card:nth-child(5) { --toy: #ff9a5c; --toy-rgb: 255, 154, 92; }
+.play-card:nth-child(6) { --toy: #7af5f7; --toy-rgb: 122, 245, 247; }
+.play-card:nth-child(7) { --toy: #ff6b8a; --toy-rgb: 255, 107, 138; }
+.play-card:nth-child(8) { --toy: #7ad7ff; --toy-rgb: 122, 215, 255; }
+.play-card:nth-child(9) { --toy: #c9a9ff; --toy-rgb: 201, 169, 255; }
+.play-card:nth-child(10) { --toy: #ffb36b; --toy-rgb: 255, 179, 107; }
+
+/* 不同装饰纹理：星环 / 斜纹 / 点阵 / 光扇 */
+.play-card:nth-child(1)::before, .play-card:nth-child(6)::before {
+  border: 1px dashed rgba(var(--toy-rgb), .45); background: transparent;
+  animation: toyFloat 7s ease-in-out infinite alternate, toySpin 16s linear infinite;
+}
+@keyframes toySpin { to { transform: rotate(360deg) } }
+.play-card:nth-child(2)::before, .play-card:nth-child(7)::before {
+  border-radius: 6px; transform: rotate(24deg);
+  background: repeating-linear-gradient(90deg, rgba(var(--toy-rgb), .3) 0 6px, transparent 6px 18px);
+}
+.play-card:nth-child(3)::before, .play-card:nth-child(8)::before {
+  background-image: radial-gradient(rgba(var(--toy-rgb), .55) 2px, transparent 2px);
+  background-size: 18px 18px; border-radius: 0;
+}
+.play-card:nth-child(4)::before, .play-card:nth-child(9)::before {
+  background: conic-gradient(from 40deg, transparent, rgba(var(--toy-rgb), .4), transparent 60%);
+  filter: blur(4px);
+}
+.play-card:nth-child(5)::before, .play-card:nth-child(10)::before {
+  border-radius: 30%; background: linear-gradient(135deg, rgba(var(--toy-rgb), .45), transparent 70%);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
 
 .pc-head { display: flex; align-items: center; gap: 12px; }
 .pc-emoji {
   flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 22px;
-  background: linear-gradient(150deg, rgba(45, 226, 230, .18), rgba(138, 92, 255, .2));
-  border: 1px solid rgba(255, 255, 255, .14);
+  background: linear-gradient(150deg, rgba(var(--toy-rgb), .28), rgba(var(--toy-rgb), .06));
+  border: 1px solid rgba(var(--toy-rgb), .45);
+  box-shadow: 0 0 16px rgba(var(--toy-rgb), .18);
 }
 .pc-hd { min-width: 0; }
 .pc-hd h3 { font-size: 16px; font-weight: 700; color: #eef2ff; }
 .pc-hd p { font-size: 11.5px; color: #9fb0d8; margin-top: 3px; }
-.pc-tag { margin-left: auto; flex-shrink: 0; font-size: 11px; color: var(--cyan-soft); padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(45, 226, 230, .4); background: rgba(45, 226, 230, .08); }
+.pc-tag { margin-left: auto; flex-shrink: 0; font-size: 11px; color: var(--toy); padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(var(--toy-rgb), .45); background: rgba(var(--toy-rgb), .1); }
 
 .pc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pc-center { text-align: center; font-size: 12px; color: #9fb0d8; margin: 0; }
@@ -462,14 +511,14 @@ onBeforeUnmount(() => {
 .pc-btn {
   border: 0; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #04121f;
   padding: 8px 16px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--cyan), var(--purple) 60%, var(--magenta));
-  box-shadow: 0 6px 16px rgba(138, 92, 255, .32); transition: .22s;
+  background: linear-gradient(135deg, var(--toy), var(--toy) 60%, #fff8);
+  box-shadow: 0 6px 16px rgba(var(--toy-rgb), .32); transition: .22s;
 }
-.pc-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.pc-btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 8px 22px rgba(var(--toy-rgb), .5); }
 .pc-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .pc-btn.full { width: 100%; }
 .pc-btn.ghost { color: #cdd6f4; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .18); box-shadow: none; }
-.pc-btn.ghost:hover { color: #fff; border-color: var(--cyan); }
+.pc-btn.ghost:hover { color: #fff; border-color: var(--toy); }
 
 /* 运势 */
 .fortune { display: flex; flex-direction: column; gap: 12px; }

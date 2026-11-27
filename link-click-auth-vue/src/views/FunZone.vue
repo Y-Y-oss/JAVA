@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import BiliRow from '../components/BiliRow.vue'
 import FunPanel from '../components/FunPanel.vue'
+import { getGameTheme } from '../utils/gameThemes'
 
 /** 娱乐专区：与社区分开的独立功能页。视频一行 4 个 + 小玩法集市 + 游戏专区快捷入口 */
 const router = useRouter()
@@ -16,6 +17,10 @@ const quickGames = [
   { key: 'snake', icon: '🐍', name: '贪吃蛇' },
   { key: 'gomoku', icon: '⚫', name: '五子棋' }
 ]
+function gameCardStyle(key) {
+  const t = getGameTheme(key)
+  return { '--card-main': t.main, '--card-rgb': t.rgb }
+}
 function goGames() { router.push('/games') }
 function goQuick(key) { router.push({ path: '/games', query: { play: key } }) }
 </script>
@@ -41,7 +46,7 @@ function goQuick(key) { router.push({ path: '/games', query: { play: key } }) }
           <button class="sec-more" @click="goGames">查看全部 8 款 →</button>
         </div>
         <div class="quick-row">
-          <button v-for="g in quickGames" :key="g.key" class="quick-card" @click="goQuick(g.key)">
+          <button v-for="g in quickGames" :key="g.key" class="quick-card" :style="gameCardStyle(g.key)" @click="goQuick(g.key)">
             <span class="qc-emoji">{{ g.icon }}</span>
             <b>{{ g.name }}</b>
             <small>开始 →</small>
@@ -108,14 +113,17 @@ function goQuick(key) { router.push({ path: '/games', query: { play: key } }) }
 .quick-card {
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px;
   cursor: pointer; font-family: inherit; color: #eef2ff; border-radius: 16px;
-  background: linear-gradient(160deg, rgba(18, 22, 52, .74), rgba(12, 14, 38, .66));
-  border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 12px 30px rgba(0, 0, 0, .38);
+  background: linear-gradient(160deg, rgba(var(--card-rgb), .12), rgba(12, 14, 38, .7));
+  border: 1px solid rgba(var(--card-rgb), .34); box-shadow: 0 12px 30px rgba(0, 0, 0, .38);
   transition: transform .26s, border-color .26s, box-shadow .26s;
 }
-.quick-card:hover { transform: translateY(-5px); border-color: var(--cyan); box-shadow: 0 20px 44px rgba(45, 226, 230, .22); }
-.qc-emoji { font-size: 28px; line-height: 1; filter: drop-shadow(0 4px 12px rgba(45, 226, 230, .4)); }
+.quick-card:hover {
+  transform: translateY(-5px); border-color: var(--card-main);
+  box-shadow: 0 20px 44px rgba(var(--card-rgb), .3), inset 0 0 22px rgba(var(--card-rgb), .1);
+}
+.qc-emoji { font-size: 28px; line-height: 1; filter: drop-shadow(0 4px 12px rgba(var(--card-rgb), .6)); }
 .quick-card b { font-size: 12.5px; font-weight: 600; }
-.quick-card small { font-size: 10.5px; color: var(--cyan-soft); }
+.quick-card small { font-size: 10.5px; color: var(--card-main); }
 
 /* B 站视频 */
 .bili-box {

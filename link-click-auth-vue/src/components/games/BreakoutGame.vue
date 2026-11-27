@@ -1,6 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { getRecord, saveRecord } from '../../utils/gameScore'
+import WinStage from './WinStage.vue'
+import { getGameTheme } from '../../utils/gameThemes'
+
+// 画布内绘制不走 CSS 变量，直接取主题色，避免"外框熔岩、里面青紫"
+const T = getGameTheme('breakout')
 
 /** 打砖块 · 3 关，消完所有砖块过关，3 条命 */
 const TOTAL = 3
@@ -29,7 +34,7 @@ function makeBricks(n) {
   const rows = 3 + n, cols = 8
   const bw = (W - 24 - (cols - 1) * 6) / cols
   const bh = 18
-  const colors = ['#2de2e6', '#7af5f7', '#8a5cff', '#b39cff', '#ff48c4', '#ff8ad8']
+  const colors = [T.main, T.accent, '#ff5b7f', T.second, T.accent, T.main]
   const out = []
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -102,7 +107,7 @@ function loop() {
       const angle = hit * 0.9 - Math.PI / 2
       ball.vx = Math.cos(angle) * speed
       ball.vy = Math.sin(angle) * speed
-      spawnBurst(ball.x, padY, '#2de2e6')
+      spawnBurst(ball.x, padY, T.main)
     }
 
     // 砖块碰撞
@@ -165,7 +170,7 @@ function draw() {
   if (!ctx) return
   const c = ctx
   const bg = c.createLinearGradient(0, 0, 0, H)
-  bg.addColorStop(0, '#0d1430'); bg.addColorStop(1, '#161033')
+  bg.addColorStop(0, '#25081a'); bg.addColorStop(1, '#160812')
   c.fillStyle = bg; c.fillRect(0, 0, W, H)
 
   bricks.forEach((b) => {
@@ -189,9 +194,9 @@ function draw() {
   // 挡板
   const padY = H - 30
   c.save()
-  c.shadowColor = '#2de2e6'; c.shadowBlur = 14
+  c.shadowColor = T.main; c.shadowBlur = 14
   const pg = c.createLinearGradient(paddleX, 0, paddleX + PAD_W, 0)
-  pg.addColorStop(0, '#2de2e6'); pg.addColorStop(.5, '#7af5f7'); pg.addColorStop(1, '#8a5cff')
+  pg.addColorStop(0, T.main); pg.addColorStop(.5, T.accent); pg.addColorStop(1, T.second)
   c.fillStyle = pg
   c.beginPath()
   c.roundRect ? c.roundRect(paddleX, padY, PAD_W, PAD_H, 6) : c.rect(paddleX, padY, PAD_W, PAD_H)
@@ -199,14 +204,14 @@ function draw() {
 
   // 球
   c.save()
-  c.shadowColor = '#ff48c4'; c.shadowBlur = 16
-  c.fillStyle = '#ff8ad8'
+  c.shadowColor = T.main; c.shadowBlur = 16
+  c.fillStyle = T.accent
   c.beginPath(); c.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); c.fill()
   c.restore()
 
   // 待发球时的引导线
   if (phase.value === 'ready') {
-    c.strokeStyle = 'rgba(122,245,247,.28)'; c.setLineDash([5, 6]); c.lineWidth = 1
+    c.strokeStyle = `rgba(${T.rgb},.32)`; c.setLineDash([5, 6]); c.lineWidth = 1
     c.beginPath(); c.moveTo(ball.x, ball.y); c.lineTo(ball.x, 100); c.stroke(); c.setLineDash([])
   }
 }
@@ -271,6 +276,7 @@ onBeforeUnmount(() => {
         @mousemove="onMouse" @touchmove.prevent="onMouseTouch" @click="launch"
       ></canvas>
       <div v-if="phase === 'ready' || phase === 'levelClear' || phase === 'allClear' || phase === 'gameOver'" class="overlay">
+        <WinStage v-if="phase !== 'ready'" theme="fireworks" />
         <template v-if="phase === 'ready'">
           <div class="ov-emoji">🧱</div>
           <h3>第 {{ level }} 关</h3>
@@ -328,8 +334,9 @@ onBeforeUnmount(() => {
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 14px;
-  background: rgba(8, 11, 32, .84); backdrop-filter: blur(4px); animation: pop .24s ease-out;
+  background: rgba(30, 6, 18, .94); backdrop-filter: blur(5px); animation: pop .24s ease-out;
 }
+.overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
 .ov-emoji { font-size: 44px; line-height: 1; }
 .overlay h3 { font-size: 23px; font-weight: 800; color: var(--cyan); text-shadow: 0 0 18px rgba(45, 226, 230, .5); }

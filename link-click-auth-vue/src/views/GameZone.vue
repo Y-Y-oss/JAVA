@@ -12,6 +12,7 @@ import BreakoutGame from '../components/games/BreakoutGame.vue'
 import SnakeGame from '../components/SnakeGame.vue'
 import GomokuGame from '../components/GomokuGame.vue'
 import { getAllRecords } from '../utils/gameScore'
+import { getGameTheme } from '../utils/gameThemes'
 
 /** 游戏专区：独立页面，与社区分开。所有小游戏在这里统一入口、统一记录 */
 const games = [
@@ -52,6 +53,10 @@ const totalClears = computed(() => Object.values(records.value).reduce((s, r) =>
 const progress = computed(() => Math.round(clearedGames.value / games.length * 100))
 
 function hasCleared(g) { return (records.value[g.key]?.clears || 0) > 0 }
+function cardStyle(key) {
+  const t = getGameTheme(key)
+  return { '--card-main': t.main, '--card-second': t.second, '--card-rgb': t.rgb }
+}
 function recordText(g) {
   const r = records.value[g.key] || {}
   switch (g.key) {
@@ -122,11 +127,12 @@ onMounted(() => {
 
       <!-- 游戏大厅 -->
       <div class="game-grid">
-        <button v-for="g in filtered" :key="g.key" class="game-card" @click="openGame(g.key)">
+        <button v-for="g in filtered" :key="g.key" class="game-card" :style="cardStyle(g.key)" @click="openGame(g.key)">
           <div class="gc-top">
             <span class="gc-icon">{{ g.icon }}</span>
             <span class="gc-cat" :class="'cat-' + g.cat">{{ g.cat }}</span>
           </div>
+          <span class="gc-vibe">{{ getGameTheme(g.key).vibe }}</span>
           <h3 class="gc-name">{{ g.name }}</h3>
           <p class="gc-desc">{{ g.desc }}</p>
           <p class="gc-rec">🏅 {{ recordText(g) }}</p>
@@ -157,6 +163,7 @@ onMounted(() => {
       :title="currentGame.name"
       :icon="currentGame.icon"
       :subtitle="currentGame.tip"
+      :game-key="current"
       @close="closeGame"
     >
       <component :is="gameComponent" :key="current" />
@@ -227,9 +234,17 @@ onMounted(() => {
   border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
   transition: transform .28s, border-color .28s, box-shadow .28s;
 }
-.game-card:hover { transform: translateY(-6px); border-color: var(--cyan); box-shadow: 0 22px 52px rgba(45, 226, 230, .24); }
+.game-card:hover {
+  transform: translateY(-6px) rotate(-.5deg); border-color: var(--card-main);
+  box-shadow: 0 20px 52px rgba(var(--card-rgb), .26), 0 0 0 1px rgba(var(--card-rgb), .24), inset 0 0 30px rgba(var(--card-rgb), .07);
+}
 .gc-top { display: flex; align-items: flex-start; justify-content: space-between; }
-.gc-icon { font-size: 34px; line-height: 1; filter: drop-shadow(0 4px 12px rgba(45, 226, 230, .4)); }
+.gc-icon { font-size: 34px; line-height: 1; filter: drop-shadow(0 4px 14px rgba(var(--card-rgb), .6)); }
+.gc-vibe {
+  align-self: flex-start; font-size: 10px; letter-spacing: 1.5px; color: var(--card-main);
+  padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(var(--card-rgb), .4);
+  background: rgba(var(--card-rgb), .1);
+}
 .gc-cat { font-size: 11px; padding: 3px 10px; border-radius: 999px; color: #cdd6f4; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); }
 .gc-cat.cat-闯关 { color: #7af5f7; border-color: rgba(45, 226, 230, .5); background: rgba(45, 226, 230, .1); }
 .gc-cat.cat-益智 { color: #c9a9ff; border-color: rgba(138, 92, 255, .5); background: rgba(138, 92, 255, .1); }

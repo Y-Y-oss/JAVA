@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getRecord, saveRecord, updateBest } from '../../utils/gameScore'
+import WinStage from './WinStage.vue'
 
 /** 2048：合出 2048 即通关，可继续挑战更高分。支持键盘 / 滑动 / 屏幕按钮 / 撤销一步 */
 const SIZE = 4
@@ -181,11 +182,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
     <div class="stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
       <div class="board">
-        <div v-for="(v, i) in cells" :key="i" class="tile" :class="{ empty: !v }" :style="tileStyle(v)">
+        <div v-for="(v, i) in cells" :key="i" class="tile" :class="{ empty: !v, hot: v >= 128 }" :style="tileStyle(v)">
           {{ v || '' }}
         </div>
       </div>
       <div v-if="won && !keepPlaying" class="overlay win">
+        <WinStage theme="numbers" />
         <div class="ov-emoji">🎉</div>
         <h3>通关！2048 达成</h3>
         <p>得分 {{ score }} · 还可以继续冲击更高分</p>
@@ -242,12 +244,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   transition: background .18s;
 }
 .tile.empty { background: rgba(255, 255, 255, .045); box-shadow: none; }
+.tile.hot { animation: hotTile 2.4s ease-in-out infinite; }
+@keyframes hotTile {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 0 10px rgba(var(--game-rgb), .28) }
+  50% { box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 22px 3px rgba(var(--game-rgb), .6) }
+}
 
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 16px;
-  background: rgba(8, 11, 32, .86); backdrop-filter: blur(4px); animation: pop .24s ease-out;
+  background: rgba(8, 11, 32, .94); backdrop-filter: blur(5px); animation: pop .24s ease-out;
 }
+.overlay.win { background: rgba(28, 16, 4, .94); }
+.overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
 .ov-emoji { font-size: 44px; line-height: 1; }
 .overlay h3 { font-size: 23px; font-weight: 800; color: var(--magenta); }

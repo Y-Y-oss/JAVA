@@ -1,5 +1,9 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import WinStage from './games/WinStage.vue'
+import { getGameTheme } from '../utils/gameThemes'
+
+const T = getGameTheme('snake')
 
 const COLS = 20
 const ROWS = 20
@@ -61,17 +65,17 @@ function draw() {
   if (!ctx) return
   const W = COLS * CELL
   const H = ROWS * CELL
-  ctx.fillStyle = '#0c1130'
+  ctx.fillStyle = '#062018'
   ctx.fillRect(0, 0, W, H)
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+  ctx.strokeStyle = `rgba(${T.rgb},0.1)`
   ctx.lineWidth = 1
   for (let i = 0; i <= COLS; i++) {
     ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, H); ctx.stroke()
     ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(W, i * CELL); ctx.stroke()
   }
   if (food) {
-    ctx.fillStyle = '#ff48c4'
-    ctx.shadowColor = '#ff48c4'
+    ctx.fillStyle = T.accent
+    ctx.shadowColor = T.main
     ctx.shadowBlur = 12
     ctx.beginPath()
     ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2)
@@ -80,8 +84,8 @@ function draw() {
   }
   snake.forEach((s, i) => {
     const isHead = i === 0
-    ctx.fillStyle = isHead ? '#2de2e6' : i % 2 ? '#8a5cff' : '#5fd3ff'
-    ctx.shadowColor = '#2de2e6'
+    ctx.fillStyle = isHead ? T.main : i % 2 ? T.second : '#2fbf8a'
+    ctx.shadowColor = T.main
     ctx.shadowBlur = isHead ? 14 : 0
     roundRect(ctx, s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2, 4)
     ctx.fill()
@@ -205,6 +209,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="paused" class="pause-overlay">已暂停</div>
       <div v-if="gameOver" class="result-overlay" :class="{ win: won }" @click="startGame">
+        <WinStage theme="snake" />
         <div class="r-emoji">{{ won ? '🎉' : '💥' }}</div>
         <div class="r-title">{{ won ? '通关！' : '游戏结束' }}</div>
         <div class="r-sub">{{ won ? '你填满了整个棋盘' : '得分 ' + score }}</div>
@@ -269,9 +274,10 @@ onBeforeUnmount(() => {
 .result-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 12px;
-  background: rgba(8, 11, 32, .82); cursor: pointer; backdrop-filter: blur(3px);
+  background: rgba(6, 20, 18, .94); cursor: pointer; backdrop-filter: blur(5px);
   animation: pop .25s ease-out;
 }
+.result-overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
 .r-emoji { font-size: 44px; line-height: 1; }
 .r-title { font-size: 24px; font-weight: 800; }

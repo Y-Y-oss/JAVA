@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { getRecord, saveRecord } from '../../utils/gameScore'
 import WinStage from './WinStage.vue'
+import { getGameTheme } from '../../utils/gameThemes'
+
+const T = getGameTheme('maze')
 
 /**
  * 时光迷宫 · 闯关小游戏
@@ -202,8 +205,8 @@ function draw() {
   const c = ctx
   c.clearRect(0, 0, size, size)
   const bg = c.createLinearGradient(0, 0, size, size)
-  bg.addColorStop(0, '#0d1430')
-  bg.addColorStop(1, '#161033')
+  bg.addColorStop(0, '#062624')
+  bg.addColorStop(1, '#061420')
   c.fillStyle = bg
   c.fillRect(0, 0, size, size)
 
@@ -211,13 +214,13 @@ function draw() {
     for (let col = 0; col < n; col++) {
       const x = col * cell, y = r * cell
       if (maze[r][col] === 1) {
-        c.fillStyle = 'rgba(138,92,255,.30)'
+        c.fillStyle = `rgba(${T.rgb},.3)`
         c.fillRect(x, y, cell, cell)
-        c.strokeStyle = 'rgba(160,130,255,.16)'
+        c.strokeStyle = `rgba(${T.rgb},.16)`
         c.lineWidth = 1
         c.strokeRect(x + .5, y + .5, cell - 1, cell - 1)
       } else {
-        c.fillStyle = 'rgba(45,226,230,.035)'
+        c.fillStyle = `rgba(${T.rgb},.035)`
         c.fillRect(x, y, cell, cell)
       }
     }
@@ -225,13 +228,13 @@ function draw() {
 
   // 走过的轨迹
   trail.forEach((p, i) => {
-    c.fillStyle = `rgba(122,245,247,${((i + 1) / trail.length * .26).toFixed(3)})`
+    c.fillStyle = `rgba(${T.rgb},${((i + 1) / trail.length * .26).toFixed(3)})`
     c.fillRect(p.c * cell + cell * .38, p.r * cell + cell * .38, cell * .24, cell * .24)
   })
 
   // 路径提示
   if (hintOn.value && hintPath.length > 1) {
-    c.strokeStyle = 'rgba(122,245,247,.5)'
+    c.strokeStyle = `rgba(${T.rgb},.5)`
     c.lineWidth = Math.max(2, cell * .2)
     c.lineJoin = 'round'
     c.lineCap = 'round'
@@ -259,11 +262,11 @@ function draw() {
   // 出口
   const ex = exit.c * cell, ey = exit.r * cell, open = shards.length === 0
   c.save()
-  if (open) { c.shadowColor = '#2de2e6'; c.shadowBlur = 14; c.fillStyle = 'rgba(45,226,230,.4)' }
-  else { c.fillStyle = 'rgba(138,92,255,.28)' }
+  if (open) { c.shadowColor = T.main; c.shadowBlur = 14; c.fillStyle = `rgba(${T.rgb},.4)` }
+  else { c.fillStyle = `rgba(${T.rgb},.2)` }
   roundRect(c, ex + 2, ey + 2, cell - 4, cell - 4, 4); c.fill()
   c.shadowBlur = 0
-  c.strokeStyle = open ? '#7af5f7' : 'rgba(190,180,225,.6)'
+  c.strokeStyle = open ? T.accent : `rgba(${T.rgb},.5)`
   c.lineWidth = 1.5
   roundRect(c, ex + 2, ey + 2, cell - 4, cell - 4, 4); c.stroke()
   c.fillStyle = open ? '#04121f' : '#d6cfee'
@@ -276,9 +279,9 @@ function draw() {
   const px = player.c * cell + cell / 2, py = player.r * cell + cell / 2
   const rad = Math.max(4, cell * .33)
   const g = c.createRadialGradient(px - rad * .3, py - rad * .3, rad * .2, px, py, rad)
-  g.addColorStop(0, '#ffffff'); g.addColorStop(.45, '#7af5f7'); g.addColorStop(1, '#2de2e6')
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.45, T.accent); g.addColorStop(1, T.main)
   c.save()
-  c.shadowColor = '#2de2e6'; c.shadowBlur = 14
+  c.shadowColor = T.main; c.shadowBlur = 14
   c.fillStyle = g
   c.beginPath(); c.arc(px, py, rad, 0, Math.PI * 2); c.fill()
   c.restore()
@@ -459,6 +462,6 @@ onBeforeUnmount(() => {
 .mz-btn.ghost:hover { color: #fff; border-color: var(--cyan); }
 .mz-tip { font-size: 11.5px; color: #7e8ab0; text-align: center; margin: 0; line-height: 1.6; }
 /* 时空隧道胜利舞台：内容浮在装饰层之上 */
-.mz-overlay { background: rgba(8, 11, 32, .68); }
+.mz-overlay { background: rgba(6, 24, 24, .94); }
 .mz-overlay > :not(.ws) { position: relative; z-index: 2; }
 </style>

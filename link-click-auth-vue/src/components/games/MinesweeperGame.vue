@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getRecord, saveRecord } from '../../utils/gameScore'
+import WinStage from './WinStage.vue'
 
 /** 扫雷 · 三档难度，翻开所有非雷格即通关；首次点击永远安全 */
 const LEVELS = [
@@ -175,6 +176,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
         >{{ cellText(c) }}</button>
       </div>
       <div v-if="phase === 'won' || phase === 'lost'" class="overlay">
+        <WinStage :theme="phase === 'won' ? 'grid' : 'fireworks'" />
         <div class="ov-emoji">{{ phase === 'won' ? '🎉' : '💥' }}</div>
         <h3>{{ phase === 'won' ? '通关！排雷完成' : '踩雷了' }}</h3>
         <p>{{ phase === 'won' ? `用时 ${fmt(elapsed)} · 试试更难的难度` : '别灰心，雷区已经全部显示出来了' }}</p>
@@ -223,14 +225,25 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   aspect-ratio: 1; border: 0; border-radius: 4px; cursor: pointer; font-family: inherit;
   font-size: clamp(10px, 2.6vw, 15px); font-weight: 800; line-height: 1;
   display: grid; place-items: center; color: #eef2ff;
-  background: linear-gradient(150deg, rgba(45, 226, 230, .2), rgba(138, 92, 255, .2));
+  background: linear-gradient(150deg, rgba(var(--game-rgb), .22), rgba(var(--game-rgb), .08));
   border: 1px solid rgba(255, 255, 255, .12); transition: .12s;
 }
 .cell:hover { filter: brightness(1.3); }
 .cell.revealed { background: rgba(10, 14, 39, .6); border-color: rgba(255, 255, 255, .06); cursor: default; }
 .cell.flagged { background: rgba(255, 72, 196, .22); }
 .cell.mine { background: rgba(255, 72, 196, .3); }
-.cell.boom { background: #ff48c4; box-shadow: 0 0 16px rgba(255, 72, 196, .8); }
+.cell.boom {
+  position: relative; background: var(--game-main);
+  box-shadow: 0 0 20px rgba(var(--game-rgb), .9);
+  animation: boomFlash .55s ease-out;
+}
+.cell.boom::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid var(--game-accent);
+  animation: boomWave .7s ease-out forwards;
+}
+@keyframes boomFlash { 0% { transform: scale(.6); filter: brightness(2) } 45% { transform: scale(1.25) } 100% { transform: scale(1) } }
+@keyframes boomWave { from { transform: scale(.4); opacity: 1 } to { transform: scale(3.6); opacity: 0 } }
 .cell.n1 { color: #7af5f7; } .cell.n2 { color: #8be9ff; } .cell.n3 { color: #b39cff; }
 .cell.n4 { color: #ff8ad8; } .cell.n5 { color: #ffb36b; } .cell.n6 { color: #ff6b8a; }
 .cell.n7 { color: #fff; } .cell.n8 { color: #cdd6f4; }
@@ -238,8 +251,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 14px;
-  background: rgba(8, 11, 32, .87); backdrop-filter: blur(4px); animation: pop .24s ease-out;
+  background: rgba(22, 6, 10, .94); backdrop-filter: blur(5px); animation: pop .24s ease-out;
 }
+.overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
 .ov-emoji { font-size: 44px; line-height: 1; }
 .overlay h3 { font-size: 23px; font-weight: 800; color: var(--cyan); }

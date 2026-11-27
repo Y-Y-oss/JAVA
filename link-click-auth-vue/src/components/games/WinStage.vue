@@ -9,6 +9,7 @@
  *   rainbow   数字华容道 —— 彩虹扫过 / 方块依次归位弹跳
  *   fireworks 打砖块     —— 四组循环绽放的烟花
  *   snake     贪吃蛇     —— 彩虹流光带 / 光点雨
+ *   gomoku    五子棋     —— 水墨涟漪 / 鎏金飞屑 / 墨痕扫过
  */
 defineProps({ theme: { type: String, default: 'space' } })
 
@@ -99,6 +100,14 @@ function petalStyle(p) {
     <template v-else-if="theme === 'snake'">
       <i v-for="n in 3" :key="'b' + n" class="sk-band" :style="{ '--n': n }"></i>
       <span v-for="(d, i) in dots" :key="'d' + i" class="sk-dot" :style="dotStyle(d)"></span>
+    </template>
+
+    <!-- ⚫ gomoku：水墨涟漪 + 鎏金飞屑 -->
+    <template v-else-if="theme === 'gomoku'">
+      <div class="gm-wash"></div>
+      <i v-for="n in 5" :key="'k' + n" class="gm-ring" :style="{ '--n': n }"></i>
+      <div class="gm-brush"></div>
+      <span v-for="(d, i) in dots" :key="'k' + i" class="gm-dust" :style="dotStyle(d)"></span>
     </template>
   </div>
 </template>
@@ -234,4 +243,32 @@ function petalStyle(p) {
 @keyframes skWave { 0%, 100% { transform: translateX(-24px) skewX(-12deg) } 50% { transform: translateX(24px) skewX(12deg) } }
 .sk-dot { position: absolute; border-radius: 50%; animation: skRain linear infinite; }
 @keyframes skRain { 0% { transform: translateY(-20px); opacity: 0 } 15% { opacity: 1 } 100% { transform: translateY(460px); opacity: 0 } }
+
+/* ===== ⚫ gomoku：水墨涟漪 + 鎏金飞屑 ===== */
+.ws-gomoku { background: radial-gradient(circle at 50% 48%, rgba(255, 217, 138, .16), transparent 66%); }
+.gm-wash {
+  position: absolute; left: 50%; top: 50%; width: 340px; height: 340px; margin: -170px 0 0 -170px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(255, 217, 138, .28), rgba(201, 162, 39, .08) 45%, transparent 70%);
+  filter: blur(8px); animation: gmPulse 3.4s ease-in-out infinite;
+}
+@keyframes gmPulse { 0%, 100% { transform: scale(.8); opacity: .55 } 50% { transform: scale(1.2); opacity: 1 } }
+.gm-ring {
+  position: absolute; left: 50%; top: 50%; width: 118px; height: 118px; margin: -59px 0 0 -59px;
+  border-radius: 50%; border: 2px solid rgba(255, 217, 138, .6);
+  box-shadow: 0 0 16px rgba(255, 217, 138, .35), inset 0 0 16px rgba(201, 162, 39, .2);
+  animation: gmRipple 4.6s ease-out calc(var(--n) * -.92s) infinite;
+}
+@keyframes gmRipple { 0% { transform: scale(.3); opacity: 0 } 16% { opacity: .9 } 100% { transform: scale(3.4); opacity: 0 } }
+.gm-brush {
+  position: absolute; top: -30%; left: -20%; width: 45%; height: 160%;
+  background: linear-gradient(100deg, transparent, rgba(255, 217, 138, .34), rgba(201, 162, 39, .16), transparent);
+  filter: blur(14px); transform: skewX(-24deg); animation: gmBrush 3.6s ease-in-out infinite;
+}
+@keyframes gmBrush { 0% { left: -45%; opacity: 0 } 30%, 70% { opacity: .9 } 100% { left: 130%; opacity: 0 } }
+.gm-dust {
+  position: absolute; border-radius: 50%; background: #ffd98a;
+  box-shadow: 0 0 10px #fff4cc;
+  animation: gmDust 2.6s ease-in-out infinite alternate;
+}
+@keyframes gmDust { 0% { opacity: .12; transform: translateY(16px) scale(.5) } 100% { opacity: 1; transform: translateY(-20px) scale(1.6) } }
 </style>

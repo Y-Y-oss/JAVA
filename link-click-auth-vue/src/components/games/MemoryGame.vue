@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getRecord, saveRecord } from '../../utils/gameScore'
+import WinStage from './WinStage.vue'
 
 /** 记忆翻牌 · 4 关闯关：翻出所有配对即过关，关卡越大牌越多 */
 const LEVELS = [
@@ -139,6 +140,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div v-if="phase !== 'play'" class="overlay">
+        <WinStage theme="cards" />
         <div class="ov-emoji">{{ phase === 'allClear' ? '🏆' : '🎉' }}</div>
         <h3>{{ phase === 'allClear' ? '全部通关！' : '第 ' + level + ' 关通过' }}</h3>
         <p>{{ phase === 'allClear' ? `用时 ${fmt(elapsed)} · ${moves} 次翻牌` : '牌会更多，记忆力跟得上吗？' }}</p>
@@ -184,25 +186,35 @@ onBeforeUnmount(() => {
   font-size: clamp(16px, 4.4vw, 26px);
 }
 .back {
-  color: #7af5f7; background: linear-gradient(150deg, rgba(45, 226, 230, .22), rgba(138, 92, 255, .24));
-  border: 1px solid rgba(122, 245, 247, .35); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16);
+  color: var(--game-accent); background: linear-gradient(150deg, rgba(var(--game-rgb), .24), rgba(var(--game-rgb), .08));
+  border: 1px solid rgba(var(--game-rgb), .5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16);
 }
-.card:hover .back { box-shadow: 0 0 14px rgba(45, 226, 230, .4); }
+.card:hover .back { box-shadow: 0 0 16px rgba(var(--game-rgb), .55); }
 .front {
-  transform: rotateY(180deg); color: #04121f;
-  background: linear-gradient(150deg, #7af5f7, #b39cff);
+  transform: rotateY(180deg); color: var(--game-ink);
+  background: linear-gradient(150deg, var(--game-main), var(--game-second));
   border: 1px solid rgba(255, 255, 255, .4);
 }
 .card.flipped .back { transform: rotateY(180deg); }
 .card.flipped .front { transform: rotateY(360deg); }
-.card.matched .front { background: linear-gradient(150deg, #2de2e6, #ff8ad8); box-shadow: 0 0 16px rgba(45, 226, 230, .45); }
+.card.matched .front {
+  background: linear-gradient(150deg, var(--game-main), var(--game-second));
+  box-shadow: 0 0 18px rgba(var(--game-rgb), .6), inset 0 0 12px rgba(255, 255, 255, .35);
+  animation: matchBurst .6s cubic-bezier(.2, .8, .2, 1);
+}
 .card.matched { cursor: default; }
+@keyframes matchBurst {
+  0% { transform: rotateY(360deg) scale(1) }
+  45% { transform: rotateY(360deg) scale(1.16); box-shadow: 0 0 32px 8px rgba(var(--game-rgb), .75) }
+  100% { transform: rotateY(360deg) scale(1) }
+}
 
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 16px;
-  background: rgba(8, 11, 32, .87); backdrop-filter: blur(4px); animation: pop .24s ease-out;
+  background: rgba(20, 6, 26, .94); backdrop-filter: blur(5px); animation: pop .24s ease-out;
 }
+.overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
 .ov-emoji { font-size: 44px; line-height: 1; }
 .overlay h3 { font-size: 23px; font-weight: 800; color: var(--cyan); text-shadow: 0 0 18px rgba(45, 226, 230, .5); }

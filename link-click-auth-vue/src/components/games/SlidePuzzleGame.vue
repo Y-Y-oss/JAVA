@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getRecord, saveRecord } from '../../utils/gameScore'
+import WinStage from './WinStage.vue'
 
 /** 数字华容道 · 3×3 / 4×4 / 5×5，把数字还原成顺序即通关 */
 const SIZES = [3, 4, 5]
@@ -135,6 +136,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); if (timer)
         >{{ v || '' }}</button>
       </div>
       <div v-if="won" class="overlay">
+        <WinStage theme="rainbow" />
         <div class="ov-emoji">🎉</div>
         <h3>还原成功！</h3>
         <p>{{ moves }} 步 · 用时 {{ fmt(elapsed) }}</p>
@@ -190,15 +192,22 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); if (timer)
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 4px 12px rgba(0, 0, 0, .3);
   transition: transform .14s, box-shadow .18s, background .18s;
 }
-.tile:hover:not(.blank) { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(45, 226, 230, .3); }
-.tile.correct { background: linear-gradient(150deg, rgba(45, 226, 230, .5), rgba(138, 92, 255, .4)); }
+.tile:hover:not(.blank) { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(var(--game-rgb), .45); }
+.tile.correct {
+  background: linear-gradient(150deg, rgba(var(--game-rgb), .62), rgba(var(--game-rgb), .3));
+  border-color: rgba(var(--game-rgb), .75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 0 16px rgba(var(--game-rgb), .4);
+  animation: correctPulse 2.2s ease-in-out infinite;
+}
+@keyframes correctPulse { 0%, 100% { filter: brightness(1) } 50% { filter: brightness(1.28) } }
 .tile.blank { background: rgba(255, 255, 255, .035); border: 1px dashed rgba(255, 255, 255, .12); box-shadow: none; cursor: default; }
 
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px; border-radius: 16px;
-  background: rgba(8, 11, 32, .87); backdrop-filter: blur(4px); animation: pop .24s ease-out;
+  background: rgba(6, 16, 32, .94); backdrop-filter: blur(5px); animation: pop .24s ease-out;
 }
+.overlay > :not(.ws) { position: relative; z-index: 2; }
 @keyframes pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
 .ov-emoji { font-size: 44px; line-height: 1; }
 .overlay h3 { font-size: 23px; font-weight: 800; color: var(--cyan); text-shadow: 0 0 18px rgba(45, 226, 230, .5); }
